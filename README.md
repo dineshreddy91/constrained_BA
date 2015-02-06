@@ -13,6 +13,16 @@ make -j3
 make test
 make install
 
+Wrapper for ceres
+
+git clone https://github.com/dineshreddy91/constrained_BA
+cd constrained_BA
+cmake .
+make
+
+To run the algorithm we use matlab
+
+The main file is box_synthetic.m
 
 
 
