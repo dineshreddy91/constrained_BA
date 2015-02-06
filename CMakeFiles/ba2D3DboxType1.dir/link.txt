@@ -1,0 +1,1 @@
+/usr/bin/c++       CMakeFiles/ba2D3DboxType1.dir/ba2D3DboxType.cc.o  -o ba2D3DboxType1 -rdynamic /usr/local/lib/libceres.a /usr/local/lib/libglog.so -Wl,-Bstatic -lspqr -Wl,-Bdynamic -ltbb -ltbbmalloc -lcholmod -lccolamd -lcamd -lcolamd -lamd -llapack -lblas /usr/local/lib/libmetis.so -llapack -lblas /usr/local/lib/libmetis.so -lgomp -lpthread -Wl,-rpath,/usr/local/lib 
