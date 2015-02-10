@@ -72,7 +72,8 @@ objectRtW2O = fread(fout,12*nObjects,'double');
 fclose(fout);
 
 cameraRtW2C = reshape(cameraRtW2C,3,4,[]);
-objectRtW2O = reshape(objectRtW2O,3,4,[]);
+cameraRtW2C
+%objectRtW2O = reshape(objectRtW2O,3,4,[]);
 pointCloud = reshape(pointCloud,3,[]);
 
 % transform the cameraRt back
