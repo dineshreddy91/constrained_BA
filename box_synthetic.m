@@ -124,6 +124,7 @@ save('synthetic_data.mat', 'K', 'cameraRtC2W', 'pointCloud', 'pointObserved', 'p
 %% bundle ajustment with constarints 
 
 load('synthetic_data.mat');
+num_of_rand_points=100;
 %load('bundle_data.mat');
 global objectLabel;
 objectLabel.length = 0;
@@ -131,7 +132,7 @@ objectLabel.objectRtO2W = zeros(3,4,objectLabel.length);
 objectLabel.objectSize = zeros(objectLabel.length,3);
 objectLabel.optimizationWeight = zeros(1,objectLabel.length);
 
-[cameraRtC2W1,pointCloud] = bundleAdjustment2D3DBoxFile(cameraRtC2W,pointCloud,pointObserved, pointObservedValue, K, w3D,7);
+[cameraRtC2W1,pointCloud] = bundleAdjustment2D3DBoxFile(cameraRtC2W,pointCloud,pointObserved, pointObservedValue, K, w3D,7,num_of_rand_points);
 scatter3(pointCloud(1,1:size(Point3d_actual,1)),pointCloud(2,1:size(Point3d_actual,1)),pointCloud(3,1:size(Point3d_actual,1)));
 first=Point3d_actual(:,:,1)';
 second=pointCloud(:,1:n);

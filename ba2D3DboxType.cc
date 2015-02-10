@@ -1195,6 +1195,7 @@ int main(int argc, char** argv)
   unsigned int nPts;  fread((void*)(&nPts), sizeof(unsigned int), 1, fp);
   unsigned int nObs;  fread((void*)(&nObs), sizeof(unsigned int), 1, fp);
   unsigned int nObjects;  fread((void*)(&nObjects), sizeof(unsigned int), 1, fp);
+  unsigned int n_of;  fread((void*)(&n_of), sizeof(unsigned int), 1, fp);
 
   unsigned int * objectType;
 
@@ -1325,7 +1326,7 @@ int main(int argc, char** argv)
     double* observePtr = pointObservedValue+6*idObs;
 
 			//random number generator
-			int size=3;
+			int size=n_of;
 			int array[size];
 			srand((unsigned)time(0)); 
 			for(int i=0; i<size; i++)
@@ -1426,6 +1427,8 @@ int main(int argc, char** argv)
 									//std::cout<<pointPtr<<" "<<pointPtr1<<" "<<std::endl;			
 									ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1, 1, 1,3,3,6>(new AlignmentErrorbox_new1(observePtr));
 									problem.AddResidualBlock(cost_function1, loss_function, &c,pointPtr,pointPtr1,cameraPtr);
+									problem.SetParameterLowerBound(&c,0,-3);
+									problem.SetParameterUpperBound(&c,0,3);
 									}
 								}
 							}

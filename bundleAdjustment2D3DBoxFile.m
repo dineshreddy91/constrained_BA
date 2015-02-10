@@ -1,4 +1,4 @@
-function [cameraRtC2W,pointCloud] = bundleAdjustment2D3DBoxFile(cameraRtC2W,pointCloud,pointObserved, pointObservedValue, K, weight, mode)
+function [cameraRtC2W,pointCloud] = bundleAdjustment2D3DBoxFile(cameraRtC2W,pointCloud,pointObserved, pointObservedValue, K, weight, mode,num_of_rand_points)
 
 
 [camID,ptsID,valID] = find(pointObserved);
@@ -38,10 +38,12 @@ fwrite(fin, nCam, 'uint32');
 fwrite(fin, nPts, 'uint32');
 fwrite(fin, nObs, 'uint32');
 fwrite(fin, nObjects, 'uint32'); %<= Object
+fwrite(fin, num_of_rand_points, 'uint32');
 fwrite(fin, fx, 'double');
 fwrite(fin, fy, 'double');
 fwrite(fin, px, 'double');
 fwrite(fin, py, 'double');
+
 
 fwrite(fin, cameraRtW2C, 'double');
 fwrite(fin, objectRtW2O, 'double'); %<= Object
@@ -72,7 +74,6 @@ objectRtW2O = fread(fout,12*nObjects,'double');
 fclose(fout);
 
 cameraRtW2C = reshape(cameraRtW2C,3,4,[]);
-cameraRtW2C
 %objectRtW2O = reshape(objectRtW2O,3,4,[]);
 pointCloud = reshape(pointCloud,3,[]);
 
