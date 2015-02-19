@@ -31,14 +31,17 @@ CMAKE_COMMAND = /usr/bin/cmake
 # The command to remove a file.
 RM = /usr/bin/cmake -E remove -f
 
+# Escaping for special characters.
+EQUALS = =
+
 # The program to use to edit the cache.
-CMAKE_EDIT_COMMAND = /usr/bin/ccmake
+CMAKE_EDIT_COMMAND = /usr/bin/cmake-gui
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/dineshn/iros_2015_1/constrained_BA
+CMAKE_SOURCE_DIR = /home/prateek/git/constrained_BA
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/dineshn/iros_2015_1/constrained_BA
+CMAKE_BINARY_DIR = /home/prateek/git/constrained_BA
 
 # Include any dependencies generated for this target.
 include CMakeFiles/test.dir/depend.make
@@ -51,17 +54,17 @@ include CMakeFiles/test.dir/flags.make
 
 CMakeFiles/test.dir/test.cc.o: CMakeFiles/test.dir/flags.make
 CMakeFiles/test.dir/test.cc.o: test.cc
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/dineshn/iros_2015_1/constrained_BA/CMakeFiles $(CMAKE_PROGRESS_1)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/prateek/git/constrained_BA/CMakeFiles $(CMAKE_PROGRESS_1)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building CXX object CMakeFiles/test.dir/test.cc.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/test.dir/test.cc.o -c /home/dineshn/iros_2015_1/constrained_BA/test.cc
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/test.dir/test.cc.o -c /home/prateek/git/constrained_BA/test.cc
 
 CMakeFiles/test.dir/test.cc.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/test.dir/test.cc.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/dineshn/iros_2015_1/constrained_BA/test.cc > CMakeFiles/test.dir/test.cc.i
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/prateek/git/constrained_BA/test.cc > CMakeFiles/test.dir/test.cc.i
 
 CMakeFiles/test.dir/test.cc.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/test.dir/test.cc.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/dineshn/iros_2015_1/constrained_BA/test.cc -o CMakeFiles/test.dir/test.cc.s
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/prateek/git/constrained_BA/test.cc -o CMakeFiles/test.dir/test.cc.s
 
 CMakeFiles/test.dir/test.cc.o.requires:
 .PHONY : CMakeFiles/test.dir/test.cc.o.requires
@@ -80,23 +83,31 @@ test_OBJECTS = \
 test_EXTERNAL_OBJECTS =
 
 test: CMakeFiles/test.dir/test.cc.o
+test: CMakeFiles/test.dir/build.make
 test: /usr/local/lib/libceres.a
 test: /usr/local/lib/libglog.so
-test: /usr/lib/libspqr.a
+test: /usr/lib/x86_64-linux-gnu/libspqr.so
 test: /usr/lib/libtbb.so
 test: /usr/lib/libtbbmalloc.so
-test: /usr/lib/libcholmod.so
-test: /usr/lib/libccolamd.so
-test: /usr/lib/libcamd.so
-test: /usr/lib/libcolamd.so
-test: /usr/lib/libamd.so
+test: /usr/lib/x86_64-linux-gnu/libcholmod.so
+test: /usr/lib/x86_64-linux-gnu/libccolamd.so
+test: /usr/lib/x86_64-linux-gnu/libcamd.so
+test: /usr/lib/x86_64-linux-gnu/libcolamd.so
+test: /usr/lib/x86_64-linux-gnu/libamd.so
 test: /usr/lib/liblapack.so
-test: /usr/lib/libblas.so
-test: /usr/local/lib/libmetis.so
+test: /usr/lib/libf77blas.so
+test: /usr/lib/libatlas.so
+test: /usr/lib/x86_64-linux-gnu/libsuitesparseconfig.a
+test: /usr/lib/x86_64-linux-gnu/librt.so
+test: /usr/lib/libmetis.so
+test: /usr/local/lib/libcxsparse.a
 test: /usr/lib/liblapack.so
-test: /usr/lib/libblas.so
-test: /usr/local/lib/libmetis.so
-test: CMakeFiles/test.dir/build.make
+test: /usr/lib/libf77blas.so
+test: /usr/lib/libatlas.so
+test: /usr/lib/x86_64-linux-gnu/libsuitesparseconfig.a
+test: /usr/lib/x86_64-linux-gnu/librt.so
+test: /usr/lib/libmetis.so
+test: /usr/local/lib/libcxsparse.a
 test: CMakeFiles/test.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --red --bold "Linking CXX executable test"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/test.dir/link.txt --verbose=$(VERBOSE)
@@ -113,6 +124,6 @@ CMakeFiles/test.dir/clean:
 .PHONY : CMakeFiles/test.dir/clean
 
 CMakeFiles/test.dir/depend:
-	cd /home/dineshn/iros_2015_1/constrained_BA && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA/CMakeFiles/test.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/prateek/git/constrained_BA && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA/CMakeFiles/test.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/test.dir/depend
 

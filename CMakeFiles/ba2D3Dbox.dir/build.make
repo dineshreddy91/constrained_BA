@@ -31,14 +31,17 @@ CMAKE_COMMAND = /usr/bin/cmake
 # The command to remove a file.
 RM = /usr/bin/cmake -E remove -f
 
+# Escaping for special characters.
+EQUALS = =
+
 # The program to use to edit the cache.
-CMAKE_EDIT_COMMAND = /usr/bin/ccmake
+CMAKE_EDIT_COMMAND = /usr/bin/cmake-gui
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/dineshn/iros_2015_1/constrained_BA
+CMAKE_SOURCE_DIR = /home/prateek/git/constrained_BA
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/dineshn/iros_2015_1/constrained_BA
+CMAKE_BINARY_DIR = /home/prateek/git/constrained_BA
 
 # Include any dependencies generated for this target.
 include CMakeFiles/ba2D3Dbox.dir/depend.make
@@ -51,17 +54,17 @@ include CMakeFiles/ba2D3Dbox.dir/flags.make
 
 CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o: CMakeFiles/ba2D3Dbox.dir/flags.make
 CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o: ba2D3Dbox.cc
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/dineshn/iros_2015_1/constrained_BA/CMakeFiles $(CMAKE_PROGRESS_1)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/prateek/git/constrained_BA/CMakeFiles $(CMAKE_PROGRESS_1)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building CXX object CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o"
-	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o -c /home/dineshn/iros_2015_1/constrained_BA/ba2D3Dbox.cc
+	/usr/bin/c++   $(CXX_DEFINES) $(CXX_FLAGS) -o CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o -c /home/prateek/git/constrained_BA/ba2D3Dbox.cc
 
 CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.i"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/dineshn/iros_2015_1/constrained_BA/ba2D3Dbox.cc > CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.i
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -E /home/prateek/git/constrained_BA/ba2D3Dbox.cc > CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.i
 
 CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.s"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/dineshn/iros_2015_1/constrained_BA/ba2D3Dbox.cc -o CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.s
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_FLAGS) -S /home/prateek/git/constrained_BA/ba2D3Dbox.cc -o CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.s
 
 CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o.requires:
 .PHONY : CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o.requires
@@ -80,23 +83,31 @@ ba2D3Dbox_OBJECTS = \
 ba2D3Dbox_EXTERNAL_OBJECTS =
 
 ba2D3Dbox: CMakeFiles/ba2D3Dbox.dir/ba2D3Dbox.cc.o
+ba2D3Dbox: CMakeFiles/ba2D3Dbox.dir/build.make
 ba2D3Dbox: /usr/local/lib/libceres.a
 ba2D3Dbox: /usr/local/lib/libglog.so
-ba2D3Dbox: /usr/lib/libspqr.a
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libspqr.so
 ba2D3Dbox: /usr/lib/libtbb.so
 ba2D3Dbox: /usr/lib/libtbbmalloc.so
-ba2D3Dbox: /usr/lib/libcholmod.so
-ba2D3Dbox: /usr/lib/libccolamd.so
-ba2D3Dbox: /usr/lib/libcamd.so
-ba2D3Dbox: /usr/lib/libcolamd.so
-ba2D3Dbox: /usr/lib/libamd.so
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libcholmod.so
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libccolamd.so
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libcamd.so
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libcolamd.so
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libamd.so
 ba2D3Dbox: /usr/lib/liblapack.so
-ba2D3Dbox: /usr/lib/libblas.so
-ba2D3Dbox: /usr/local/lib/libmetis.so
+ba2D3Dbox: /usr/lib/libf77blas.so
+ba2D3Dbox: /usr/lib/libatlas.so
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libsuitesparseconfig.a
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/librt.so
+ba2D3Dbox: /usr/lib/libmetis.so
+ba2D3Dbox: /usr/local/lib/libcxsparse.a
 ba2D3Dbox: /usr/lib/liblapack.so
-ba2D3Dbox: /usr/lib/libblas.so
-ba2D3Dbox: /usr/local/lib/libmetis.so
-ba2D3Dbox: CMakeFiles/ba2D3Dbox.dir/build.make
+ba2D3Dbox: /usr/lib/libf77blas.so
+ba2D3Dbox: /usr/lib/libatlas.so
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/libsuitesparseconfig.a
+ba2D3Dbox: /usr/lib/x86_64-linux-gnu/librt.so
+ba2D3Dbox: /usr/lib/libmetis.so
+ba2D3Dbox: /usr/local/lib/libcxsparse.a
 ba2D3Dbox: CMakeFiles/ba2D3Dbox.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --red --bold "Linking CXX executable ba2D3Dbox"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/ba2D3Dbox.dir/link.txt --verbose=$(VERBOSE)
@@ -113,6 +124,6 @@ CMakeFiles/ba2D3Dbox.dir/clean:
 .PHONY : CMakeFiles/ba2D3Dbox.dir/clean
 
 CMakeFiles/ba2D3Dbox.dir/depend:
-	cd /home/dineshn/iros_2015_1/constrained_BA && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA /home/dineshn/iros_2015_1/constrained_BA/CMakeFiles/ba2D3Dbox.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/prateek/git/constrained_BA && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA /home/prateek/git/constrained_BA/CMakeFiles/ba2D3Dbox.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/ba2D3Dbox.dir/depend
 

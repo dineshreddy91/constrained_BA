@@ -4,10 +4,19 @@ SET(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 SET(CMAKE_DEPENDS_CHECK_CXX
-  "/home/dineshn/iros_2015_1/constrained_BA/ba2D3D.cc" "/home/dineshn/iros_2015_1/constrained_BA/CMakeFiles/ba2D3D.dir/ba2D3D.cc.o"
+  "/home/prateek/git/constrained_BA/ba2D3D.cc" "/home/prateek/git/constrained_BA/CMakeFiles/ba2D3D.dir/ba2D3D.cc.o"
   )
 SET(CMAKE_CXX_COMPILER_ID "GNU")
 
 # Targets to which this target links.
 SET(CMAKE_TARGET_LINKED_INFO_FILES
   )
+
+# The include file search paths:
+SET(CMAKE_C_TARGET_INCLUDE_PATH
+  "/usr/local/include"
+  "/usr/include/eigen3"
+  )
+SET(CMAKE_CXX_TARGET_INCLUDE_PATH ${CMAKE_C_TARGET_INCLUDE_PATH})
+SET(CMAKE_Fortran_TARGET_INCLUDE_PATH ${CMAKE_C_TARGET_INCLUDE_PATH})
+SET(CMAKE_ASM_TARGET_INCLUDE_PATH ${CMAKE_C_TARGET_INCLUDE_PATH})

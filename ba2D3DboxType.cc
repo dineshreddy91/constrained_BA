@@ -1131,11 +1131,14 @@ struct AlignmentErrorbox_new1 {
     p1[2] += camera_extrinsic[5];
 	//std::cout<<p[0]<<" "<<p1[0]<<std::endl;
     //// The error is the difference between the predicted and observed position.
-    residuals[0] = (sqrt(pow(p[0] - p1[0],2)+pow(p[1] - p1[1],2)+pow(p[2] - p1[2],2)) - c);
-  //  residuals[1] = (abs(p[1] - p1[1]) - c);//(p[0] - p1[0] + c);
-//	residuals[2] = (abs(p[2] - p1[2]) - c); //(p[0] - p1[0] + c);
+
+   // residuals[0] = (p[1] - p1[1] - c[0]) ; //temp[0] - temp1[0]);
+    residuals[0] =  (sqrt(pow(p[0] - p1[0],2)+pow(p[1] - p1[1],2)+pow(p[2] - p1[2],2))-c[0]);
+   // std:
+   // residuals[1] = (p[1] - p1[1] - c[1]);//(p[0] - p1[0] + c);
+   // residuals[2] = (p[2] - p1[2] - c[2]); //(p[0] - p1[0] + c);
  
-    //std::cout<<residuals[0]<<" "<<residuals[1]<<" "<<residuals[2]<<std::endl;
+    std::cout<<c[0]<<" "<<std::endl;
 
     //// let p[2] ~= 0
     //if (T(0.0)<=p[2]){
@@ -1307,7 +1310,7 @@ int main(int argc, char** argv)
   //ceres::LossFunction* loss_function = new ceres::ArctanLoss(10.0);
   
   //----------------------------------------------------------------
-
+ double c;
   for (unsigned int idObs=0; idObs<nObs-1; ++idObs){
 	//std:: cout<<pointObservedIndex[2*idObs]<<std::endl;
 	//std:: cout<<idObs<<std::endl;
@@ -1315,7 +1318,7 @@ int main(int argc, char** argv)
     double* cameraPtr1;
     double* cameraPtr2;
     double initial_c = 5.0;
-	double c = initial_c;
+    c = initial_c;
     int flag=0;
     if (pointObservedIndex[2*idObs] >= 2)
     {
@@ -1424,11 +1427,14 @@ int main(int argc, char** argv)
 									double* pointPtr1  = pointCloud + pointObservedIndex[2*idObs2+1] * 3;
 									if(pointPtr==pointPtr1){}else
 									{ 
-									//std::cout<<pointPtr<<" "<<pointPtr1<<" "<<std::endl;			
-									ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1, 1, 1,3,3,6>(new AlignmentErrorbox_new1(observePtr));
-									problem.AddResidualBlock(cost_function1, loss_function, &c,pointPtr,pointPtr1,cameraPtr);
-									problem.SetParameterLowerBound(&c,0,-3);
-									problem.SetParameterUpperBound(&c,0,3);
+                                //    std::cout<<pointPtr<<" "<<pointPtr1<<" "<<std::endl;
+                               //     ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1, 1,3,3,6>(new AlignmentErrorbox_new1(observePtr));
+                                    ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1,1,1,3,3,6>(new AlignmentErrorbox_new1(observePtr));
+                            //
+                                        problem.AddResidualBlock(cost_function1, loss_function, &c,pointPtr,pointPtr1,cameraPtr);
+                               //    problem.AddResidualBlock(cost_function1, loss_function,pointPtr,pointPtr1,cameraPtr);
+                                //	problem.SetParameterLowerBound(&c,0,-3);
+                                //	problem.SetParameterUpperBound(&c,0,3);
 									}
 								}
 							}
@@ -1514,14 +1520,14 @@ int main(int argc, char** argv)
   options.minimizer_progress_to_stdout = true;
   options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;  //ceres::SPARSE_SCHUR;  //ceres::DENSE_SCHUR;
   //options.ordering_type = ceres::SCHUR;
-  
+  options.num_linear_solver_threads = 4;
   /*
   options.linear_solver_type = ceres::DENSE_SCHUR; //ceres::SPARSE_SCHUR; //ceres::DENSE_SCHUR; //ceres::SPARSE_NORMAL_CHOLESKY; //
   options.ordering_type = ceres::SCHUR;
   options.minimizer_progress_to_stdout = true;
   // New options
   //options.preconditioner_type = ceres::JACOBI; // ceres::IDENTITY
-  options.num_linear_solver_threads = 12;
+
   //options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
   //options.use_block_amd = true;
   //options.eta=1e-2;
@@ -1587,7 +1593,7 @@ int main(int argc, char** argv)
 
 
   // write back result files
-  std::cout<<nCam<<" "<<nPts<<" "<<pointCloud<<std::endl;
+//  std::cout<<nCam<<" "<<nPts<<" "<<c<<std::endl;
   FILE* fpout = fopen(argv[4],"wb");
   fwrite((void*)(&nCam), sizeof(unsigned int), 1, fpout);
   fwrite((void*)(&nPts), sizeof(unsigned int), 1, fpout);
