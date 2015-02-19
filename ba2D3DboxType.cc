@@ -1131,9 +1131,9 @@ struct AlignmentErrorbox_new1 {
     p1[2] += camera_extrinsic[5];
 	//std::cout<<p[0]<<" "<<p1[0]<<std::endl;
     //// The error is the difference between the predicted and observed position.
-    residuals[0] = p[0] - p1[0]-c[0];
-    residuals[1] = p[1] - p1[1]-c[1];
-	residuals[2] = p[2] - p1[2]-c[2];
+    residuals[0] = (sqrt(pow(p[0] - p1[0],2)+pow(p[1] - p1[1],2)+pow(p[2] - p1[2],2)) - c);
+  //  residuals[1] = (abs(p[1] - p1[1]) - c);//(p[0] - p1[0] + c);
+//	residuals[2] = (abs(p[2] - p1[2]) - c); //(p[0] - p1[0] + c);
  
     //std::cout<<residuals[0]<<" "<<residuals[1]<<" "<<residuals[2]<<std::endl;
 
