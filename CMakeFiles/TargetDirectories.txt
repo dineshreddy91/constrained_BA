@@ -1,4 +1,0 @@
-/home/prateek/git/constrained_BA/CMakeFiles/ba2D3D.dir
-/home/prateek/git/constrained_BA/CMakeFiles/ba2D3Dbox.dir
-/home/prateek/git/constrained_BA/CMakeFiles/ba2D3DboxType1.dir
-/home/prateek/git/constrained_BA/CMakeFiles/test.dir
