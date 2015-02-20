@@ -1133,12 +1133,13 @@ struct AlignmentErrorbox_new1 {
     //// The error is the difference between the predicted and observed position.
 
    // residuals[0] = (p[1] - p1[1] - c[0]) ; //temp[0] - temp1[0]);
-    residuals[0] =  (sqrt(pow(p[0] - p1[0],2)+pow(p[1] - p1[1],2)+pow(p[2] - p1[2],2))-c[0]);
+    // residuals[0] =  (sqrt(pow(p[0] - p1[0],2)+pow(p[1] - p1[1],2)+pow(p[2] - p1[2],2))-c[0]);
+    residuals[0] =  (sqrt(pow(p[0] - p1[0] - c[0],2)+pow(p[1] - p1[1] - c[1],2)+pow(p[2] - p1[2] - c[2],2)));
    // std:
    // residuals[1] = (p[1] - p1[1] - c[1]);//(p[0] - p1[0] + c);
    // residuals[2] = (p[2] - p1[2] - c[2]); //(p[0] - p1[0] + c);
  
-    std::cout<<c[0]<<" "<<std::endl;
+    std::cout<<"Outputting c[0]"<<c[0]<<" "<<std::endl;
 
     //// let p[2] ~= 0
     //if (T(0.0)<=p[2]){
@@ -1310,7 +1311,7 @@ int main(int argc, char** argv)
   //ceres::LossFunction* loss_function = new ceres::ArctanLoss(10.0);
   
   //----------------------------------------------------------------
- double c;
+ double *c = new double[n_of*n_of*3];
   for (unsigned int idObs=0; idObs<nObs-1; ++idObs){
 	//std:: cout<<pointObservedIndex[2*idObs]<<std::endl;
 	//std:: cout<<idObs<<std::endl;
@@ -1318,7 +1319,7 @@ int main(int argc, char** argv)
     double* cameraPtr1;
     double* cameraPtr2;
     double initial_c = 5.0;
-    c = initial_c;
+	for( int tmp=0; tmp<(n_of*n_of); tmp++ ) c[3*tmp] = c[3*tmp+1] = c[3*tmp+2] = initial_c ;
     int flag=0;
     if (pointObservedIndex[2*idObs] >= 2)
     {
@@ -1416,7 +1417,7 @@ int main(int argc, char** argv)
         	  //problem.AddResidualBlock(cost_function1,loss_function,cameraPtr,cameraPtr1,cameraPtr2);
         	  //cost_function1= new ceres::AutoDiffCostFunction<AlignmentErrorbox_new, 3,3, 6, 6, 6 >(new AlignmentErrorbox_new(observePtr,&c));
         	  //problem.AddResidualBlock(cost_function1,loss_function,&c,cameraPtr,pointPtr,pointPtr1);
-          
+			  int cntr=0;
 					for (unsigned int views=0; views<nCam-1; ++views){
           			for (int first=0;first<size;first++){
 					    int idObs1=nPts/nCam*views+array[first];
@@ -1429,9 +1430,9 @@ int main(int argc, char** argv)
 									{ 
                                 //    std::cout<<pointPtr<<" "<<pointPtr1<<" "<<std::endl;
                                //     ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1, 1,3,3,6>(new AlignmentErrorbox_new1(observePtr));
-                                    ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1,1,1,3,3,6>(new AlignmentErrorbox_new1(observePtr));
+                                    ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1,1,3,3,3,6>(new AlignmentErrorbox_new1(observePtr));
                             //
-                                        problem.AddResidualBlock(cost_function1, loss_function, &c,pointPtr,pointPtr1,cameraPtr);
+                                        problem.AddResidualBlock(cost_function1, loss_function, &c[3*cntr++], pointPtr, pointPtr1, cameraPtr);
                                //    problem.AddResidualBlock(cost_function1, loss_function,pointPtr,pointPtr1,cameraPtr);
                                 //	problem.SetParameterLowerBound(&c,0,-3);
                                 //	problem.SetParameterUpperBound(&c,0,3);

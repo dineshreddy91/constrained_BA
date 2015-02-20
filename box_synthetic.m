@@ -123,14 +123,17 @@
 
 %% bundle ajustment with constarints 
 
-load('bundle_data_stationary.mat');
+%load('bundle_data_stationary.mat');
 num_of_rand_points=3;
+%load('synthetic_data.mat');
 %load('bundle_data.mat');
+load('bundle_data_moving_1.mat');
 global objectLabel;
 objectLabel.length = 0;
 objectLabel.objectRtO2W = zeros(3,4,objectLabel.length);
 objectLabel.objectSize = zeros(objectLabel.length,3);
 objectLabel.optimizationWeight = zeros(1,objectLabel.length);
+keyboard ;
 
 [cameraRtC2W1,pointCloud] = bundleAdjustment2D3DBoxFile(cameraRtC2W,pointCloud,pointObserved, pointObservedValue, K, w3D,7,num_of_rand_points);
 % scatter3(pointCloud(1,1:size(Point3d_actual,1)),pointCloud(2,1:size(Point3d_actual,1)),pointCloud(3,1:size(Point3d_actual,1)));
