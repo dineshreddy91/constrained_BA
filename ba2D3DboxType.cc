@@ -4,1622 +4,381 @@
 #include <iostream>
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
+#include "ceres_functions.h"
 
+using namespace std;
 
-double* objectHalfSize;
-double* objectWeight;
-
+double* object_half_size;
+double* object_weight;
 double fx, fy, px, py, w3Dv2D;
 float normal[4]={0,1,0,100};
-
-#define EPS T(0.00001)
-
 int exe_time=0;
 
 
-
-struct AlignmentErrorTriangulate {
-  AlignmentErrorTriangulate(double* observed_in, double* camera_extrinsic_in): observed(observed_in), camera_extrinsic(camera_extrinsic_in) {}
-
-  template <typename T>
-  bool operator()(const T* const point, T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    
-    ceres::AngleAxisRotatePoint((T*)(camera_extrinsic), point, p);
-
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += T(camera_extrinsic[3]);
-    p[1] += T(camera_extrinsic[4]);
-    p[2] += T(camera_extrinsic[5]);
-    
-    // let p[2] ~= 0
-    if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    
-    // project it
-    p[0] = T(fx) * p[0] / p[2] + T(px);
-    p[1] = T(fy) * p[1] / p[2] + T(py);
-    
-    // reprojection error
-    residuals[0] = (p[0] - T(observed[0]));
-    residuals[1] = (p[1] - T(observed[1]));     
-
-    /*
-    std::cout<<"p[0]="<<p[0]<<std::endl;
-    std::cout<<"p[1]="<<p[1]<<std::endl;
-    std::cout<<"observed[0]="<<observed[0]<<std::endl;
-    std::cout<<"observed[1]="<<observed[1]<<std::endl;
-    std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-    std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-    std::cout<<"--------------------------"<<std::endl;
-    */
-    return true;
-  }
-  
-  double* observed;
-  double* camera_extrinsic;
-};
-
-
-struct AlignmentError2D {
-  AlignmentError2D(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const point,
-                  T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    /*
-    T x = camera_extrinsic[0];
-    T y = camera_extrinsic[1];
-    T z = camera_extrinsic[2];
-    T x2 = x*x;
-    T y2 = y*y;
-    T z2 = z*z;    
-    T w2 = T(1.0) - x2 - y2 - z2;
-    T w  = sqrt(w2);
-    
-    p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    */
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // let p[2] ~= 0
-    if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    
-    // project it
-    p[0] = T(fx) * p[0] / p[2] + T(px);
-    p[1] = T(fy) * p[1] / p[2] + T(py);
-    
-    // reprojection error
-    residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
-    residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
-    
-    /*
-    if (exe_time<10000){
-        exe_time++;
-        std::cout<<"p[0]="<<p[0]<<std::endl;
-        std::cout<<"p[1]="<<p[1]<<std::endl;
-        std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-        std::cout<<"residuals[1]="<<residuals[1]<<std::endl;        
-        std::cout<<"--------------------------"<<std::endl;
-    }
-    */
-    
-    return true;
-  }
-  
-  double* observed;
-
-};
-
-
-struct AlignmentError3D {
-  AlignmentError3D(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const point,
-                  T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    /*
-    T x = camera_extrinsic[0];
-    T y = camera_extrinsic[1];
-    T z = camera_extrinsic[2];
-    T x2 = x*x;
-    T y2 = y*y;
-    T z2 = z*z;    
-    T w2 = T(1.0) - x2 - y2 - z2;
-    T w  = sqrt(w2);
-    
-    p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    */
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // The error is the difference between the predicted and observed position.
-    residuals[0] = T(observed[5])*(p[0] - T(observed[2]));
-    residuals[1] = T(observed[5])*(p[1] - T(observed[3]));
-    residuals[2] = T(observed[5])*(p[2] - T(observed[4]));
-
-
-    /*    
-     if (exe_time<10){
-        exe_time ++;
-        std::cout<<"fx="<<fx<<std::endl;
-        std::cout<<"fy="<<fy<<std::endl;
-        std::cout<<"px="<<px<<std::endl;
-        std::cout<<"py="<<py<<std::endl;
-        std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;        
-        std::cout<<"p[0]="<<p[0]<<std::endl;
-        std::cout<<"p[1]="<<p[1]<<std::endl;
-        std::cout<<"p[2]="<<p[2]<<std::endl;
-        std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        std::cout<<"observed[2]="<<observed[2]<<std::endl;
-        std::cout<<"observed[3]="<<observed[3]<<std::endl;
-        std::cout<<"observed[4]="<<observed[4]<<std::endl;
-        std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-        std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-        std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
-        std::cout<<"--------------------------"<<std::endl;
-    }
-    */
-    
-     float n[4]= {0,1,0,0};
-	 T temp = (camera_extrinsic[3]* T(n[0]))+(camera_extrinsic[4] * T(n[1]))+(camera_extrinsic[5] * T(n[2]));
-    
-		
-
-    return true;
-  }
-  double* observed;
-};
-
-
-template <class T>
-T bandFunction(T x, T halfWin){
-  return T(1.0)/(T(1.0)+exp(T(-100.0)*(x-halfWin))) + T(1.0)/(T(1.0)+exp(T(-100.0)*(-x-halfWin)));
-}
-
-template <class T>
-T hingeLoss(T x, T halfWin){
-  //return max(T(0), T(-halfWin)-x) + max(T(0), T(-halfWin)+x);
-  if (x< -halfWin){
-    //return -halfWin - x;
-    return x + halfWin;
-  }else if (x<halfWin){
-    return 0;
-  }else{
-    return x-halfWin;
-  }
-}
-
-
-struct AlignmentErrorBox {
-  AlignmentErrorBox(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const world2object,
-                  T* residuals) const {
-
-    T p[3];
-    T q[3];  
-    T o[3];  
-    T r[3];
-
-    p[0] = T(observed[2]) - camera_extrinsic[3];
-    p[1] = T(observed[3]) - camera_extrinsic[4];
-    p[2] = T(observed[4]) - camera_extrinsic[5];
-
-    r[0] = - camera_extrinsic[0];
-    r[1] = - camera_extrinsic[1];
-    r[2] = - camera_extrinsic[2];
-    
-    ceres::AngleAxisRotatePoint(r, p, o);
-    
-    ceres::AngleAxisRotatePoint(world2object, o, q);
-
-    q[0] += world2object[3];
-    q[1] += world2object[4];
-    q[2] += world2object[5];
-
-    // quadratic function
-    //residuals[0] = q[0];
-    //residuals[1] = q[1];
-    //residuals[2] = q[2];    
-
-    // hinge loss
-    double* szPtr = objectHalfSize + 3 * int(observed[5]);
-    T oW = T(objectWeight[int(observed[5])]);
-
-    //std::cout<<"oW="<<oW<<std::endl;
-
-    //residuals[0] = hingeLoss<T>(q[0], T(szPtr[0]));
-    //residuals[1] = hingeLoss<T>(q[1], T(szPtr[1]));
-    //residuals[2] = hingeLoss<T>(q[2], T(szPtr[2])); 
-
-    if (q[0] < T(-szPtr[0])){
-      residuals[0] = oW * (q[0] + T(szPtr[0]));
-    }else if (q[0] < T(szPtr[0])){
-      residuals[0] = T(0.0);
-    }else{
-      residuals[0] = oW * (q[0] - T(szPtr[0]));
-    }
-
-    if (q[1] < T(-szPtr[1])){
-      residuals[1] = oW * (q[1] + T(szPtr[1]));
-    }else if (q[1] < T(szPtr[1])){
-      residuals[1] = T(0.0);
-    }else{
-      residuals[1] = oW * (q[1] - T(szPtr[1]));
-    }
-
-    if (q[2] < T(-szPtr[2])){
-      residuals[2] = oW * (q[2] + T(szPtr[2]));
-    }else if (q[2] < T(szPtr[2])){
-      residuals[2] = T(0.0);
-    }else{
-      residuals[2] = oW * (q[2] - T(szPtr[2]));
-    }    
-
-    //double* szPtr = objectHalfSize + 3 * int(observed[5]);
-    //residuals[0] = bandFunction<T>(q[0], T(szPtr[0]));
-    //residuals[1] = bandFunction<T>(q[1], T(szPtr[1]));
-    //residuals[2] = bandFunction<T>(q[2], T(szPtr[2]));
-
-    //std::cout<<"szPtr[0]="<<szPtr[0]<<std::endl;
-    //std::cout<<"szPtr[1]="<<szPtr[1]<<std::endl;
-    //std::cout<<"szPtr[2]="<<szPtr[2]<<std::endl;
-    //std::cout<<"q[0]="<<q[0]<<std::endl;
-    //std::cout<<"q[1]="<<q[1]<<std::endl;
-    //std::cout<<"q[2]="<<q[2]<<std::endl;
-
-    //std::cout<<"bandFunction<T>(q[0], T(szPtr[0]))="<<bandFunction<T>(q[0], T(szPtr[0]))<<std::endl;
-    //std::cout<<"bandFunction<T>(q[0], T(szPtr[0]))="<<bandFunction<T>(q[1], T(szPtr[1]))<<std::endl;
-    //std::cout<<"bandFunction<T>(q[0], T(szPtr[0]))="<<bandFunction<T>(q[2], T(szPtr[2]))<<std::endl;
-
-
-
-
-    return true;
-  }
-  double* observed;
-};
-
-struct AlignmentErrorAxisManhattanBox {
-  AlignmentErrorAxisManhattanBox(double* observed_in): observed(observed_in) {}
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,const T* const world2object,T* residuals) const {
-    T p[3];
-    T q[3];  
-    T o[3];  
-    T r[3];
-    p[0] = T(observed[2]) - camera_extrinsic[3];
-    p[1] = T(observed[3]) - camera_extrinsic[4];
-    p[2] = T(observed[4]) - camera_extrinsic[5];
-    r[0] = - camera_extrinsic[0];
-    r[1] = - camera_extrinsic[1];
-    r[2] = - camera_extrinsic[2];
-    ceres::AngleAxisRotatePoint(r, p, o);
-    
-    q[0] = o[0] + world2object[0];
-    q[1] = o[1] + world2object[1];
-    q[2] = o[2] + world2object[2];
-
-    double* szPtr = objectHalfSize + 3 * int(observed[5]);
-    T oW = T(objectWeight[int(observed[5])]);
-    if (q[0] < T(-szPtr[0])){
-      residuals[0] = oW * (q[0] + T(szPtr[0]));
-    }else if (q[0] < T(szPtr[0])){
-      residuals[0] = T(0.0);
-    }else{
-      residuals[0] = oW * (q[0] - T(szPtr[0]));
-    }
-    if (q[1] < T(-szPtr[1])){
-      residuals[1] = oW * (q[1] + T(szPtr[1]));
-    }else if (q[1] < T(szPtr[1])){
-      residuals[1] = T(0.0);
-    }else{
-      residuals[1] = oW * (q[1] - T(szPtr[1]));
-    }
-    if (q[2] < T(-szPtr[2])){
-      residuals[2] = oW * (q[2] + T(szPtr[2]));
-    }else if (q[2] < T(szPtr[2])){
-      residuals[2] = T(0.0);
-    }else{
-      residuals[2] = oW * (q[2] - T(szPtr[2]));
-    }    
-    return true;
-  }
-  double* observed;
-};
-
-
-struct AlignmentErrorAxisBox {
-  AlignmentErrorAxisBox(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const world2object,
-                  T* residuals) const {
-
-    T p[3];
-    T q[3];  
-    T o[3];  
-    T r[3];
-
-    p[0] = T(observed[2]) - camera_extrinsic[3];
-    p[1] = T(observed[3]) - camera_extrinsic[4];
-    p[2] = T(observed[4]) - camera_extrinsic[5];
-
-    r[0] = - camera_extrinsic[0];
-    r[1] = - camera_extrinsic[1];
-    r[2] = - camera_extrinsic[2];
-    
-    ceres::AngleAxisRotatePoint(r, p, o);
-    
-
-    T cosTheta = cos(world2object[0]);
-    T sinTheta = sin(world2object[0]);
-
-
-    q[0] = cosTheta * o[0] - sinTheta * o[2] + world2object[1];
-    q[1] = o[1]                              + world2object[2];
-    q[2] = sinTheta * o[0] + cosTheta * o[2] + world2object[3];
-
-
-    // hinge loss
-    double* szPtr = objectHalfSize + 3 * int(observed[5]);
-    T oW = T(objectWeight[int(observed[5])]);
-    //std::cout<<"oW="<<oW<<std::endl;
-
-    //residuals[0] = hingeLoss<T>(q[0], T(szPtr[0]));
-    //residuals[1] = hingeLoss<T>(q[1], T(szPtr[1]));
-    //residuals[2] = hingeLoss<T>(q[2], T(szPtr[2])); 
-
-    if (q[0] < T(-szPtr[0])){
-      residuals[0] = oW * (q[0] + T(szPtr[0]));
-    }else if (q[0] < T(szPtr[0])){
-      residuals[0] = T(0.0);
-    }else{
-      residuals[0] = oW * (q[0] - T(szPtr[0]));
-    }
-
-    if (q[1] < T(-szPtr[1])){
-      residuals[1] = oW * (q[1] + T(szPtr[1]));
-    }else if (q[1] < T(szPtr[1])){
-      residuals[1] = T(0.0);
-    }else{
-      residuals[1] = oW * (q[1] - T(szPtr[1]));
-    }
-
-    if (q[2] < T(-szPtr[2])){
-      residuals[2] = oW * (q[2] + T(szPtr[2]));
-    }else if (q[2] < T(szPtr[2])){
-      residuals[2] = T(0.0);
-    }else{
-      residuals[2] = oW * (q[2] - T(szPtr[2]));
-    }    
-
-    return true;
-  }
-  double* observed;
-};
-
-struct AlignmentErrorFloor {
-  AlignmentErrorFloor(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  T* residuals) const {
-
-    T p[3];
-    T q[3];   
-    T r[3];
-
-    p[0] = T(observed[2]) - camera_extrinsic[3];
-    p[1] = T(observed[3]) - camera_extrinsic[4];
-    p[2] = T(observed[4]) - camera_extrinsic[5];
-
-    r[0] = - camera_extrinsic[0];
-    r[1] = - camera_extrinsic[1];
-    r[2] = - camera_extrinsic[2];
-    
-    ceres::AngleAxisRotatePoint(r, p, q);
-
-
-    // hinge loss
-    double* szPtr = objectHalfSize + 3 * int(observed[5]);
-    T oW = T(objectWeight[int(observed[5])]);
-
-    //residuals[0] = hingeLoss<T>(q[0], T(szPtr[0]));
-    //residuals[1] = hingeLoss<T>(q[1], T(szPtr[1]));
-    //residuals[2] = hingeLoss<T>(q[2], T(szPtr[2])); 
-
-    if (q[0] < T(-szPtr[0])){
-      residuals[0] = oW * (q[0] + T(szPtr[0]));
-    }else if (q[0] < T(szPtr[0])){
-      residuals[0] = T(0.0);
-    }else{
-      residuals[0] = oW * (q[0] - T(szPtr[0]));
-    }
-
-    if (q[1] < T(-szPtr[1])){
-      residuals[1] = oW * (q[1] + T(szPtr[1]));
-    }else if (q[1] < T(szPtr[1])){
-      residuals[1] = T(0.0);
-    }else{
-      residuals[1] = oW * (q[1] - T(szPtr[1]));
-    }
-
-    if (q[2] < T(-szPtr[2])){
-      residuals[2] = oW * (q[2] + T(szPtr[2]));
-    }else if (q[2] < T(szPtr[2])){
-      residuals[2] = T(0.0);
-    }else{
-      residuals[2] = oW * (q[2] - T(szPtr[2]));
-    }
-
-    return true;
-  }
-  double* observed;
-};
-
-struct AlignmentErrorCeiling {
-  AlignmentErrorCeiling(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const world2object,
-                  T* residuals) const {
-
-    T p[3];
-    T q[3];   
-    T r[3];
-
-    p[0] = T(observed[2]) - camera_extrinsic[3];
-    p[1] = T(observed[3]) - camera_extrinsic[4];
-    p[2] = T(observed[4]) - camera_extrinsic[5];
-
-    r[0] = - camera_extrinsic[0];
-    r[1] = - camera_extrinsic[1];
-    r[2] = - camera_extrinsic[2];
-    
-    ceres::AngleAxisRotatePoint(r, p, q);
-
-
-    // hinge loss
-    double* szPtr = objectHalfSize + 3 * int(observed[5]);
-    T oW = T(objectWeight[int(observed[5])]);
-
-    //residuals[0] = hingeLoss<T>(q[0], T(szPtr[0]));
-    //residuals[1] = hingeLoss<T>(q[1], T(szPtr[1]));
-    //residuals[2] = hingeLoss<T>(q[2], T(szPtr[2])); 
-
-    if (q[0] < T(-szPtr[0])){
-      residuals[0] = oW * (q[0] + T(szPtr[0]));
-    }else if (q[0] < T(szPtr[0])){
-      residuals[0] = T(0.0);
-    }else{
-      residuals[0] = oW * (q[0] - T(szPtr[0]));
-    }
-
-    if (q[1] - world2object[0] < T(-szPtr[2])){
-      residuals[1] = oW * (q[1] - world2object[0] + T(szPtr[2]));
-    }else if (q[1] - world2object[0] < T(szPtr[2])){
-      residuals[1] = T(0.0);
-    }else{
-      residuals[1] = oW * (q[1] - world2object[0] - T(szPtr[2]));
-    }
-
-    if (q[2] < T(-szPtr[1])){
-      residuals[2] = oW * (q[2] + T(szPtr[1]));
-    }else if (q[2] < T(szPtr[1])){
-      residuals[2] = T(0.0);
-    }else{
-      residuals[2] = oW * (q[2] - T(szPtr[1]));
-    }    
-
-    return true;
-  }
-  double* observed;
-};
-
-/*
-struct AlignmentErrorCameraPairs {
-  AlignmentErrorCameraPairs(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const cameraW2C0,const T* const cameraW2C1,T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // The error is the difference between the predicted and observed position.
-    residuals[2] = T(observed[5])*(p[0] - T(observed[2]))*w3Dv2D;
-    residuals[3] = T(observed[5])*(p[1] - T(observed[3]))*w3Dv2D;
-    residuals[4] = T(observed[5])*(p[2] - T(observed[4]))*w3Dv2D;
-
-    // let p[2] ~= 0
-    if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    
-    // project it
-    p[0] = T(fx) * p[0] / p[2] + T(px);
-    p[1] = T(fy) * p[1] / p[2] + T(py);
-    
-    // reprojection error
-    residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
-    residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
-
-    return true;
-  }
-  double* observed;
-};
-
-*/
-
-struct AlignmentError2D3D {
-  AlignmentError2D3D(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const point,
-                  T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    /*
-    T x = camera_extrinsic[0];
-    T y = camera_extrinsic[1];
-    T z = camera_extrinsic[2];
-    T x2 = x*x;
-    T y2 = y*y;
-    T z2 = z*z;    
-    T w2 = T(1.0) - x2 - y2 - z2;
-    T w  = sqrt(w2);
-    
-    p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    */
-    
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // The error is the difference between the predicted and observed position.
-    residuals[2] = T(observed[5])*(p[0] - T(observed[2]))*w3Dv2D;
-    residuals[3] = T(observed[5])*(p[1] - T(observed[3]))*w3Dv2D;
-    residuals[4] = T(observed[5])*(p[2] - T(observed[4]))*w3Dv2D;
-    
-    //std::cout<<residuals[0]<<" "<<residuals[1]<<" "<<residuals[2]<<std::endl;
-    // let p[2] ~= 0
-    if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    
-    // project it
-    float n[4]= {0,1,0,0};
-    T temp = (camera_extrinsic[3]* T(n[0]))+(camera_extrinsic[4] * T(n[1]))+(camera_extrinsic[5] * T(n[2]));
-    
-    p[0] = T(fx) * p[0] / p[2] + T(px);
-    p[1] = T(fy) * p[1] / p[2] + T(py);
-   
-    
-    //residuals[3]= T(0);
-   // residuals[5] = T(observed[5])*(temp-T(n[3]))*w3Dv2D;
-    //if (residuals[3] > T(0))
-    //{
-//		residuals[3]=T(0);
-	//}
-    //std::cout<<residuals[5]<<" ";
-    // reprojection error
-    residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
-    residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
-    
-    /*
-     if (exe_time<10){
-        exe_time ++;
-        std::cout<<"fx="<<fx<<std::endl;
-        std::cout<<"fy="<<fy<<std::endl;
-        std::cout<<"px="<<px<<std::endl;
-        std::cout<<"py="<<py<<std::endl;
-        std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;
-        std::cout<<"p[0]="<<p[0]<<std::endl;
-        std::cout<<"p[1]="<<p[1]<<std::endl;
-        std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-        std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-        std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
-        std::cout<<"residuals[3]="<<residuals[3]<<std::endl;
-        std::cout<<"residuals[4]="<<residuals[4]<<std::endl;
-        std::cout<<"--------------------------"<<std::endl;
-    }
-    */
-    return true;
-  }
-  double* observed;
-};
-
-struct AlignmentError2D3D1 {
-  AlignmentError2D3D1(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const point,
-                  T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    /*
-    T x = camera_extrinsic[0];
-    T y = camera_extrinsic[1];
-    T z = camera_extrinsic[2];
-    T x2 = x*x;
-    T y2 = y*y;
-    T z2 = z*z;    
-    T w2 = T(1.0) - x2 - y2 - z2;
-    T w  = sqrt(w2);
-    
-    p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    */
-    
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // The error is the difference between the predicted and observed position.
-    residuals[2] = T(observed[5])*(p[0] - T(observed[2]))*w3Dv2D;
-    residuals[3] = T(observed[5])*(p[1] - T(observed[3]))*w3Dv2D;
-   residuals[4] = T(observed[5])*(p[2] - T(observed[4]))*w3Dv2D;
-    
-    //std::cout<<residuals[0]<<" "<<residuals[1]<<" "<<residuals[2]<<std::endl;
-
-    // let p[2] ~= 0
-    if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    
-    // project it
-    float n[4]= {0,1,0,0};
-    T temp = (camera_extrinsic[3]* T(n[0]))+(camera_extrinsic[4] * T(n[1]))+(camera_extrinsic[5] * T(n[2]));
-    
-    p[0] = T(fx) * p[0] / p[2] + T(px);
-    p[1] = T(fy) * p[1] / p[2] + T(py);
-   
-    
-    //residuals[3]= T(0);
-    residuals[5] = T(observed[5])*(temp-T(n[3]))*w3Dv2D;
-    //if (residuals[3] > T(0))
-    //{
-//		residuals[3]=T(0);
-	//}
-    //std::cout<<residuals[5]<<" ";
-    // reprojection error
-    residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
-    residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
-    
-    /*
-     if (exe_time<10){
-        exe_time ++;
-        std::cout<<"fx="<<fx<<std::endl;
-        std::cout<<"fy="<<fy<<std::endl;
-        std::cout<<"px="<<px<<std::endl;
-        std::cout<<"py="<<py<<std::endl;
-        std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;
-        std::cout<<"p[0]="<<p[0]<<std::endl;
-        std::cout<<"p[1]="<<p[1]<<std::endl;
-        std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-        std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-        std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
-        std::cout<<"residuals[3]="<<residuals[3]<<std::endl;
-        std::cout<<"residuals[4]="<<residuals[4]<<std::endl;
-        std::cout<<"--------------------------"<<std::endl;
-    }
-    */
-    return true;
-  }
-  double* observed;
-};
-
-struct AlignmentError2D3D2 {
-  AlignmentError2D3D2(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-                  const T* const point,
-                  const T* const point1,
-                  T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    /*
-    T x = camera_extrinsic[0];
-    T y = camera_extrinsic[1];
-    T z = camera_extrinsic[2];
-    T x2 = x*x;
-    T y2 = y*y;
-    T z2 = z*z;    
-    T w2 = T(1.0) - x2 - y2 - z2;
-    T w  = sqrt(w2);
-    
-    p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    */
-    
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // The error is the difference between the predicted and observed position.
-    residuals[2] = T(observed[5])*(p[0] - T(observed[2]))*w3Dv2D;
-    residuals[3] = T(observed[5])*(p[1] - T(observed[3]))*w3Dv2D;
-    residuals[4] = T(observed[5])*(p[2] - T(observed[4]))*w3Dv2D;
-    
-    //std::cout<<residuals[0]<<" "<<residuals[1]<<" "<<residuals[2]<<std::endl;
-    // let p[2] ~= 0
-    if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    
-    // project it
-    float n[4]= {0,1,0,0};
-    T temp = (camera_extrinsic[3]* T(n[0]))+(camera_extrinsic[4] * T(n[1]))+(camera_extrinsic[5] * T(n[2]));
-    
-    p[0] = T(fx) * p[0] / p[2] + T(px);
-    p[1] = T(fy) * p[1] / p[2] + T(py);
-   
-    
-    //residuals[3]= T(0);
-   // residuals[5] = T(observed[5])*(temp-T(n[3]))*w3Dv2D;
-    //if (residuals[3] > T(0))
-    //{
-//		residuals[3]=T(0);
-	//}
-    //std::cout<<residuals[5]<<" ";
-    // reprojection error
-    residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
-    residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
-    
-    /*
-     if (exe_time<10){
-        exe_time ++;
-        std::cout<<"fx="<<fx<<std::endl;
-        std::cout<<"fy="<<fy<<std::endl;
-        std::cout<<"px="<<px<<std::endl;
-        std::cout<<"py="<<py<<std::endl;
-        std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;
-        std::cout<<"p[0]="<<p[0]<<std::endl;
-        std::cout<<"p[1]="<<p[1]<<std::endl;
-        std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-        std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-        std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
-        std::cout<<"residuals[3]="<<residuals[3]<<std::endl;
-        std::cout<<"residuals[4]="<<residuals[4]<<std::endl;
-        std::cout<<"--------------------------"<<std::endl;
-    }
-    */
-    return true;
-  }
-  double* observed;
-};
-
-
-struct AlignmentErrortran {
-  AlignmentErrortran(double* observed_in): observed(observed_in) {}
-
-  template <typename T>
-  bool operator()(const T* const camera_extrinsic,
-				  const T* const camera_extrinsic1,
-                  const T* const camera_extrinsic2,
-                  T* residuals) const {
-                  
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-  //  int camera_extrinsic[3]={0,0,0};
-  //  ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    /*
-    T x = camera_extrinsic[0];
-    T y = camera_extrinsic[1];
-    T z = camera_extrinsic[2];
-    T x2 = x*x;
-    T y2 = y*y;
-    T z2 = z*z;    
-    T w2 = T(1.0) - x2 - y2 - z2;
-    T w  = sqrt(w2);
-    
-    p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    */
-    
-    
-    
-    
-    // camera_extrinsic[3,4,5] are the translation.
-  //  p[0] += camera_extrinsic[3];
-   // p[1] += camera_extrinsic[4];
-    //p[2] += camera_extrinsic[5];
-    
-    // The error is the difference between the predicted and observed position.
-   // residuals[2] = T(observed[5])*(p[0] - T(observed[2]))*w3Dv2D;
-    //residuals[3] = T(observed[5])*(p[1] - T(observed[3]))*w3Dv2D;
-   // residuals[4] = T(observed[5])*(p[2] - T(observed[4]))*w3Dv2D;
-
-    // let p[2] ~= 0
-  /*  if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    
-    // project it
-    p[0] = T(fx) * p[0] / p[2] + T(px);
-    p[1] = T(fy) * p[1] / p[2] + T(py);*/
-    
-    // reprojection error
-    
-    T temp[3],temp1[3];
-    
-	temp[0] = -(camera_extrinsic[5]*camera_extrinsic2[4]) + (camera_extrinsic[4]*camera_extrinsic2[5]);
-	temp[1] = (camera_extrinsic[5]*camera_extrinsic2[3]) - (camera_extrinsic[3]*camera_extrinsic2[5]);
-	temp[2] = -(camera_extrinsic[4]*camera_extrinsic2[3])+(camera_extrinsic[3]*camera_extrinsic2[4]);
-    
-    temp1[0] = -(camera_extrinsic1[5]*camera_extrinsic2[4]) + (camera_extrinsic1[4]*camera_extrinsic2[5]);
-	temp1[1] = (camera_extrinsic1[5]*camera_extrinsic2[3]) - (camera_extrinsic1[3]*camera_extrinsic2[5]);
-	temp1[2] = -(camera_extrinsic1[4]*camera_extrinsic2[3])+(camera_extrinsic1[3]*camera_extrinsic2[4]);
-    
-    residuals[0] = T(observed[5])*(temp[0] - temp1[0]);
-    residuals[1] = T(observed[5])*(temp[1] - temp1[1]);
-    residuals[2] = T(observed[5])*(temp[2] - temp1[2]);
-  //  std::cout<<residuals[0]<<" "<<residuals[1]<<" "<<residuals[2]<<std::endl;
-    
-    float n[4]= {0,1,0,1};
-   // residuals[0] = T(observed[5])*(p[0]*n[0]+p[1]*n[1]+p[2]*n[2]-n[3]);
-   // residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
-    
-    /*
-     if (exe_time<10){
-        exe_time ++;
-        std::cout<<"fx="<<fx<<std::endl;
-        std::cout<<"fy="<<fy<<std::endl;
-        std::cout<<"px="<<px<<std::endl;
-        std::cout<<"py="<<py<<std::endl;
-        std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;
-        std::cout<<"p[0]="<<p[0]<<std::endl;
-        std::cout<<"p[1]="<<p[1]<<std::endl;
-        std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-        std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-        std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
-        std::cout<<"residuals[3]="<<residuals[3]<<std::endl;
-        std::cout<<"residuals[4]="<<residuals[4]<<std::endl;
-        std::cout<<"--------------------------"<<std::endl;
-    }
-    */
-    return true;
-  }
-  double* observed;
-};
-
-
-struct AlignmentErrorbox_new {
-  AlignmentErrorbox_new(double* observed_in): observed(observed_in) {}
-
-
-  template <typename T>
-  bool operator()(const T* const c,
-				  const T* const camera_extrinsic,
-                  const T* const point,
-                  const T* const point2,
-                  T* residuals) const {
-          /*             
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    T p1[3];    
-    
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point2, p1);
-
-    
-    //T x = camera_extrinsic[0];
-    //T y = camera_extrinsic[1];
-    //T z = camera_extrinsic[2];
-    //T x2 = x*x;
-    //T y2 = y*y;
-    //T z2 = z*z;    
-    //T w2 = T(1.0) - x2 - y2 - z2;
-    //T w  = sqrt(w2);
-    
-    //p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    //p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    //p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    
-    
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p1[0] += camera_extrinsic[3];
-    p1[1] += camera_extrinsic[4];
-    p1[2] += camera_extrinsic[5];
-
-    // The error is the difference between the predicted and observed position.
-    residuals[0] = p[0] - p1[0]-c[0];
-    residuals[1] = p[1] - p1[1]-c[1];
-	residuals[2] = p[2] - p1[2]-c[2];
+void generate_random_number_array( unsigned int *random_array, int n_rand_points )
+{
+	srand( (unsigned) time(0) ); 
+	for( int idx = 0; idx < n_rand_points ; idx++ )
+		random_array[ idx ]	=	( rand() % 100 ) + 1;
  
-    //std::cout<<residuals[0]<<" "<<residuals[1]<<" "<<residuals[2]<<std::endl;
-
-    // let p[2] ~= 0
-    if (T(0.0)<=p[2]){
-        if(p[2]<EPS){
-            p[2] = EPS;
-        }
-    }else{
-        if (p[2]>-EPS){
-            p[2] = -EPS;
-        }
-    }
-    */
-    
-    
-     //if (exe_time<10){
-        //exe_time ++;
-        //std::cout<<"fx="<<fx<<std::endl;
-        //std::cout<<"fy="<<fy<<std::endl;
-        //std::cout<<"px="<<px<<std::endl;
-        //std::cout<<"py="<<py<<std::endl;
-        //std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;
-        //std::cout<<"p[0]="<<p[0]<<std::endl;
-        //std::cout<<"p[1]="<<p[1]<<std::endl;
-        //std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        //std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        //std::cout<<"residuals[0]="<<residuals[0]<<std::endl;
-        //std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-        //std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
-        //std::cout<<"residuals[3]="<<residuals[3]<<std::endl;
-        //std::cout<<"--------------------------"<<std::endl;
-    //}
-    
-    return true;
-  }
-  double* observed;
-};
-
-
-struct AlignmentErrorbox_new1 {
-  AlignmentErrorbox_new1(double* observed_in): observed(observed_in) {}
-  template <typename T>
-
-   bool operator()(const T* const c,const T* const point,const T* const point2,const T* const camera_extrinsic, T* residuals) const {
-                      
-    // camera_extrinsic[0,1,2] are the angle-axis rotation.
-    T p[3];
-    T p1[3];    
-    
-    
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
-    ceres::AngleAxisRotatePoint(camera_extrinsic, point2, p1);
-
-    
-    //T x = camera_extrinsic[0];
-    //T y = camera_extrinsic[1];
-    //T z = camera_extrinsic[2];
-    //T x2 = x*x;
-    //T y2 = y*y;
-    //T z2 = z*z;    
-    //T w2 = T(1.0) - x2 - y2 - z2;
-    //T w  = sqrt(w2);
-    
-    //p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
-    //p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
-    //p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
-    
-    
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p[0] += camera_extrinsic[3];
-    p[1] += camera_extrinsic[4];
-    p[2] += camera_extrinsic[5];
-    
-    // camera_extrinsic[3,4,5] are the translation.
-    p1[0] += camera_extrinsic[3];
-    p1[1] += camera_extrinsic[4];
-    p1[2] += camera_extrinsic[5];
-	//std::cout<<p[0]<<" "<<p1[0]<<std::endl;
-    //// The error is the difference between the predicted and observed position.
-
-   // residuals[0] = (p[1] - p1[1] - c[0]) ; //temp[0] - temp1[0]);
-    // residuals[0] =  (sqrt(pow(p[0] - p1[0],2)+pow(p[1] - p1[1],2)+pow(p[2] - p1[2],2))-c[0]);
-    residuals[0] =  (sqrt(pow(p[0] - p1[0] - c[0],2)+pow(p[1] - p1[1] - c[1],2)+pow(p[2] - p1[2] - c[2],2)));
-   // std:
-   // residuals[1] = (p[1] - p1[1] - c[1]);//(p[0] - p1[0] + c);
-   // residuals[2] = (p[2] - p1[2] - c[2]); //(p[0] - p1[0] + c);
- 
-    std::cout<<"Outputting c[0]"<<c[0]<<" "<<std::endl;
-
-    //// let p[2] ~= 0
-    //if (T(0.0)<=p[2]){
-        //if(p[2]<EPS){
-            //p[2] = EPS;
-        //}
-    //}else{
-        //if (p[2]>-EPS){
-            //p[2] = -EPS;
-        //}
-    //}
-    
-    
-    
-     ////if (exe_time<10){
-        //exe_time ++;
-        //std::cout<<"fx="<<fx<<std::endl;
-        //std::cout<<"fy="<<fy<<std::endl;
-        //std::cout<<"px="<<px<<std::endl;
-        //std::cout<<"py="<<py<<std::endl;
-        //std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;
-        //std::cout<<"p[0]="<<p[0]<<std::endl;
-        //std::cout<<"p[1]="<<p[1]<<std::endl;
-        //std::cout<<"p1[0]="<<p1[0]<<std::endl;
-        //std::cout<<"p1[1]="<<p1[1]<<std::endl;
-        //std::cout<<"observed[0]="<<observed[0]<<std::endl;
-        //std::cout<<"observed[1]="<<observed[1]<<std::endl;
-        //std::cout<<"residuals[0][0]="<<residuals[0]<<std::endl;
-        //std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
-        //std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
-        //std::cout<<"--------------------------"<<std::endl;
-    //}
-    
-    return true;
-  }
-  double* observed;
-
-};
-
+	return;
+}
 
 int main(int argc, char** argv)
 {
-  //std::cout<<"sizeof(unsigned int)="<<sizeof(unsigned int)<<std::endl;
-  //std::cout<<"sizeof(double)="<<sizeof(double)<<std::endl;
-  std::cout<<"Ba2D3D bundle adjuster in 2D and 3D. Writen by Jianxiong Xiao."<<std::endl;
-  std::cout<<"Usage: EXE mode(1,2,3,5) w3Dv2D input_file_name output_file_name"<<std::endl;
+	std::cout<<"Ba2D3D bundle adjuster in 2D and 3D. Writen by Jianxiong Xiao."<<std::endl;
+	std::cout<<"Usage: EXE mode(1,2,3,5) w3Dv2D input_file_name output_file_name"<<std::endl;
 
 
-  int mode = atoi(argv[1]);
-  w3Dv2D = atof(argv[2]);
+	unsigned int n_cameras, n_points, n_observations, n_objects, n_rand_pairs;
+	unsigned int *object_type, *random_array;
 
-  // start reading input file
-  FILE* fp = fopen(argv[3],"rb");
-  if (fp==NULL) { std::cout<<"fail to open file"<<std::endl; return false;}
-  // read header count
-  unsigned int nCam;  fread((void*)(&nCam), sizeof(unsigned int), 1, fp);
-  unsigned int nPts;  fread((void*)(&nPts), sizeof(unsigned int), 1, fp);
-  unsigned int nObs;  fread((void*)(&nObs), sizeof(unsigned int), 1, fp);
-  unsigned int nObjects;  fread((void*)(&nObjects), sizeof(unsigned int), 1, fp);
-  unsigned int n_of;  fread((void*)(&n_of), sizeof(unsigned int), 1, fp);
+	unsigned int *point_observed_index;
+	double *point_observed_value, *camera_matrix, *object_rot_trans, *point_cloud;
+	double *camera_parameter;
+	double *object_parameter;
+	double *box_constraints_var;
 
-  unsigned int * objectType;
+	double init_box_bnd	=	5.0;
+	int mode			=	atoi(argv[1]);
+	w3Dv2D				=	atof(argv[2]);
+	bool verbose_flag	=	false;
 
-  // read camera intrinsic
-  fread((void*)(&fx), sizeof(double), 1, fp);
-  fread((void*)(&fy), sizeof(double), 1, fp);
-  fread((void*)(&px), sizeof(double), 1, fp);
-  fread((void*)(&py), sizeof(double), 1, fp);
-  // read camera extrinsic
-  double* cameraRt = new double [12*nCam];
-  fread((void*)(cameraRt), sizeof(double), 12*nCam, fp);
-  // read object Rt
-  double* objectRt = new double [12*nObjects];
-  fread((void*)(objectRt), sizeof(double), 12*nObjects, fp);
+	// start reading input file
+	FILE* fp = fopen(argv[3],"rb");
+	if ( fp == NULL ) 
+	{ 
+		cout<<"fail to open file"<<std::endl; return false;
+	}
 
-  // read initial 3D point position
-  double* pointCloud = new double [3*nPts];
-  fread((void*)(pointCloud), sizeof(double), 3*nPts, fp);
-  // observation
-  unsigned int* pointObservedIndex = new unsigned int [2*nObs];
-  double* pointObservedValue = new double [6*nObs];
-  //
+	// read header count
+	fread( (void*) (&n_cameras), sizeof( unsigned int ), 1, fp );
+	fread( (void*) (&n_points), sizeof( unsigned int ), 1, fp );
+	fread( (void*) (&n_observations), sizeof( unsigned int ), 1, fp );
+	fread( (void*) (&n_objects), sizeof( unsigned int ), 1, fp );
+	fread( (void*) (&n_rand_pairs), sizeof( unsigned int ), 1, fp );
 
-  objectHalfSize = new double [3*nObjects];
-  objectWeight = new double [nObjects];
-  objectType = new unsigned int [nObjects];
+	// read camera intrinsic
+	fread( (void*)(&fx), sizeof( double ), 1, fp);
+	fread( (void*)(&fy), sizeof( double ), 1, fp);
+	fread( (void*)(&px), sizeof( double ), 1, fp);
+	fread( (void*)(&py), sizeof( double ), 1, fp);
 
-  fread((void*)(pointObservedIndex), sizeof(unsigned int), 2*nObs, fp);
-  fread((void*)(pointObservedValue), sizeof(double), 6*nObs, fp);
+	/* Memory Allocation being done here */
+	point_observed_index	=	new unsigned int [ 2*n_observations ];
+	point_observed_value	=	new double [ 6*n_observations ];
+	camera_matrix			=	new double [ 12*n_cameras ];
+	object_rot_trans		=	new double [ 12*n_objects ];
+	point_cloud				=	new double [ 3*n_points ];
+	camera_parameter		=	new double [ 6*n_cameras ];
+	object_parameter		=	new double [ 6*n_objects ];
+	box_constraints_var		=	new double [ 3*n_rand_pairs*n_rand_pairs ];
+	random_array			=	new	unsigned int [ n_rand_pairs ];
 
-  fread((void*)(objectHalfSize), sizeof(double), 3*nObjects, fp);
+	/* Initialize box_constraints_var */
+	for( int idx = 0; idx < ( n_rand_pairs * n_rand_pairs ); idx++ )
+		box_constraints_var[ 3*idx ]	=	init_box_bnd, 
+		box_constraints_var[ 3*idx+1 ]	=	init_box_bnd,
+		box_constraints_var[ 3*idx+2 ]	=	init_box_bnd;
 
-  fread((void*)(objectWeight), sizeof(double), nObjects, fp);
+	fread( (void*) (camera_matrix), sizeof(double), 12*n_cameras, fp );						//	read camera extrinsics
+	fread( (void*) (object_rot_trans), sizeof(double), 12*n_objects, fp );					//	read object rotations / translations
+	fread( (void*) (point_cloud), sizeof(double), 3*n_points, fp );							//	read initial 3D point positions.
 
-  fread((void*)(objectType), sizeof(unsigned int), nObjects, fp);
+	object_half_size		=	new double [ 3*n_objects ];
+	object_weight			=	new double [ n_objects ];
+	object_type				=	new unsigned int [ n_objects ];
 
-  // finish reading
-  fclose(fp);
+	fread( (void*) (point_observed_index), sizeof(unsigned int), 2*n_observations, fp);		//	read which point is observed in which image.
+	fread( (void*) (point_observed_value), sizeof(double), 6*n_observations, fp);			//	read observed 3D and 2D points in each image.
+	fread( (void*) (object_half_size), sizeof(double), 3*n_objects, fp);					//	UNKNOWN, TODO
+	fread( (void*) (object_weight), sizeof(double), n_objects, fp);							//	UNKNOWN, TODO
+	fread( (void*) (object_type), sizeof(unsigned int), n_objects, fp);						//	UNKNOWN, TODO
 
-  // output info
-  std::cout<<"Parameters: ";
-  std::cout<<"mode="<<mode<<" ";
-  std::cout<<"w3Dv2D="<<w3Dv2D<<"\t"; //<<std::endl;  
-  std::cout<<"Meta Info: ";
-  std::cout<<"nCam="<<nCam<<" ";
-  std::cout<<"nPts="<<nPts<<" ";
-  std::cout<<"nObs="<<nObs<<" ";
-  std::cout<<"nObjects="<<nObjects<<"\t"; //<<std::endl;
-  std::cout<<"Camera Intrinsic: ";
-  std::cout<<"fx="<<fx<<" ";
-  std::cout<<"fy="<<fy<<" ";
-  std::cout<<"px="<<px<<" ";
-  std::cout<<"py="<<py<<"\t"<<std::endl;
+	// finish reading
+	fclose(fp);
 
-  for(int objectID=0; objectID<nObjects; ++objectID){
-     std::cout<<"Object #"<<objectID<<" type="<<objectType[objectID]<<" ";
-     std::cout<<"weight="<<objectWeight[objectID]<<" ";
-     std::cout<<"halfSize="<<objectHalfSize[objectID*3]<<" "<<objectHalfSize[objectID*3+1]<<" "<<objectHalfSize[objectID*3+2]<<std::endl;
-  }
+	/* Output read parameters if verbose_flag is turned on */
+	if( verbose_flag )
+	{
+		cout << "Parameters: ";
+		cout << "mode = " << mode << " ";
+		cout << "w3Dv2D = " << w3Dv2D << "\t"; //<<std::endl;  
+		cout << "Meta Info: ";
+		cout << "nCam = " << n_cameras << " ";
+		cout << "nPts = " << n_points << " ";
+		cout << "nObs = " << n_observations << " ";
+		cout << "n_objects = " << n_objects << "\t"; //<<std::endl;
+		cout << "Camera Intrinsic: ";
+		cout << "fx = " << fx << " ";
+		cout << "fy = " << fy << " ";
+		cout << "px = " << px << " ";
+		cout << "py = " << py << "\t" << endl;
 
-  // construct camera parameters from camera matrix
-  double* cameraParameter = new double [6*nCam];
-  for(int cameraID=0; cameraID<nCam; ++cameraID){
-      double* cameraPtr = cameraParameter+6*cameraID;
-      double* cameraMat = cameraRt+12*cameraID;
-      if (!(std::isnan(*cameraPtr))){
-          ceres::RotationMatrixToAngleAxis<double>(cameraMat, cameraPtr);
-          cameraPtr[3] = cameraMat[9];
-          cameraPtr[4] = cameraMat[10];
-          cameraPtr[5] = cameraMat[11];
-          //std::cout<<"cameraID="<<cameraID<<" : ";
-          //std::cout<<"cameraPtr="<<cameraPtr[0]<<" "<<cameraPtr[1]<<" "<<cameraPtr[2]<<" "<<cameraPtr[3]<<" "<<cameraPtr[4]<<" "<<cameraPtr[5]<<std::endl;
-      }
-  }
+		for( int object_id = 0; object_id < n_objects; ++object_id )
+		{
+			cout << "Object #" << object_id << " type=" << object_type[ object_id ] << " ";
+			cout << "weight=" << object_weight[ object_id ] << " ";
+			cout << "halfSize=" << object_half_size[ object_id * 3 ] << " " ;
+			cout << object_half_size[ object_id * 3 + 1 ] << " " ;
+			cout << object_half_size[ object_id * 3 + 2 ] << endl;
+		}
+	}
 
-  double* objectParameter = new double [6*nObjects];
-  for(int objectID=0; objectID<nObjects; ++objectID){
-      double* objectPtr = objectParameter+6*objectID;
-      double* objectMat = objectRt+12*objectID;
-      if (!(std::isnan(*objectPtr))){
-          ceres::RotationMatrixToAngleAxis<double>(objectMat, objectPtr);
+	/* Construct ceres cameras and objects from camera matrix and object transformations */
+	ceres_fill_camera_parameters( camera_matrix, camera_parameter, n_cameras );
+	ceres_fill_object_parameters( object_rot_trans, object_parameter, object_type, n_objects );
 
-          if (objectType[objectID]==1){
-          //   std::cout<<"Type 1 object="<<objectID<<" : "<<objectPtr[0]<<" "<<objectPtr[1]<<" "<<objectPtr[2]<<std::endl;
-             objectPtr[2] = -objectPtr[1];
-          }
+	/* 
+	 * Create residuals for each objservation in the bundle adjustment problem. The
+	 * parameters for cameras and points are added automatically.
+	 */
+	ceres::Problem problem;
+	ceres::LossFunction* loss_function			=	NULL;									// squared loss
+	ceres::LossFunction* loss_functionObject	=	NULL;									// new ceres::HuberLoss(1.0);
 
-          //std::cout<<"Object "<<objectID<<" type= "<<objectType[objectID]<<" weight = "<<objectWeight[objectID]<<std::endl;
-          //std::cout<<"halfSize = "<<objectHalfSize[3*objectID]<<" "<<objectHalfSize[3*objectID+1]<< " " <<objectHalfSize[3*objectID+2]<<std::endl;
+	/*
+	 * First generate a random set of 100 points, and then regenerate these points if necessary
+	 */
+	generate_random_number_array( random_array, n_rand_pairs );
 
-          objectPtr[3] = objectMat[9];
-          objectPtr[4] = objectMat[10];
-          objectPtr[5] = objectMat[11];
-          //std::cout<<"cameraID="<<cameraID<<" : ";
-          //std::cout<<"cameraPtr="<<cameraPtr[0]<<" "<<cameraPtr[1]<<" "<<cameraPtr[2]<<" "<<cameraPtr[3]<<" "<<cameraPtr[4]<<" "<<cameraPtr[5]<<std::endl;
-      }
-  }
+	for( unsigned int id_obs = 0; id_obs < n_observations; id_obs++ )
+	{
+		int not_first_frame			=	0;
+		double *camera_ptr			=	camera_parameter + \
+										point_observed_index[ 2*id_obs ] * 6;
+		double *obs_ptr				=	point_observed_value + 6*id_obs;
+		double *cam_ptr_one;
+		double *cam_ptr_two;
 
+		/* Initialize pointers to three types of cost functions */
 
+		if( point_observed_index[ 2*id_obs ] >= 2 )
+		{
+			cam_ptr_one				=	camera_parameter + \
+										( point_observed_index[ 2*id_obs ]-1 ) * 6;
+			cam_ptr_two				=	camera_parameter + \
+										( point_observed_index[ 2*id_obs ]-2 ) * 6;
+			not_first_frame			=	1;
+		}
 
-  //exe_time = 0;    
-  
-  // Create residuals for each observation in the bundle adjustment problem. The
-  // parameters for cameras and points are added automatically.
-  ceres::Problem problem;
-  
-  ceres::LossFunction* loss_function = NULL; // squared loss
-  ceres::LossFunction* loss_functionObject = NULL; // new ceres::HuberLoss(1.0);
-  //ceres::LossFunction* loss_function = new ceres::ArctanLoss(10.0);
-  
-  //----------------------------------------------------------------
- double *c = new double[n_of*n_of*3];
-  for (unsigned int idObs=0; idObs<nObs-1; ++idObs){
-	//std:: cout<<pointObservedIndex[2*idObs]<<std::endl;
-	//std:: cout<<idObs<<std::endl;
-    double* cameraPtr = cameraParameter + pointObservedIndex[2*idObs] * 6;
-    double* cameraPtr1;
-    double* cameraPtr2;
-    double initial_c = 5.0;
-	for( int tmp=0; tmp<(n_of*n_of); tmp++ ) c[3*tmp] = c[3*tmp+1] = c[3*tmp+2] = initial_c ;
-    int flag=0;
-    if (pointObservedIndex[2*idObs] >= 2)
-    {
-		cameraPtr1 = cameraParameter + (pointObservedIndex[2*idObs]-1) * 6;
-		cameraPtr2 = cameraParameter + (pointObservedIndex[2*idObs]-2) * 6;
-		flag=1;
-    }
-    double* observePtr = pointObservedValue+6*idObs;
+		//random number generator
+		if( obs_ptr[5] < 0 )																// This is trivially true for matlab box_synthetic.m example
+		{
+			double* point_ptr_one	=	point_cloud + point_observed_index[ 2*id_obs+1 ] * 3;
 
-			//random number generator
-			int size=n_of;
-			int array[size];
-			srand((unsigned)time(0)); 
-			for(int i=0; i<size; i++)
-			{		array[i] = (rand()%100)+1;//std::cout << array[i] << std::endl;
-			} 
-	
-    if (observePtr[5] < 0){
-
-      double* pointPtr  = pointCloud + pointObservedIndex[2*idObs+1] * 3;
-      double* pointPtr1  = pointCloud + pointObservedIndex[2*idObs+1] * 3;
-
-      ceres::CostFunction* cost_function;
-      ceres::CostFunction* cost_function1;
-      ceres::CostFunction* cost_function2;
-      
-      switch (mode){
-        case 1:
-          // 2D triangulation
-          cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorTriangulate, 2, 3>(new AlignmentErrorTriangulate(observePtr,cameraPtr));
-          problem.AddResidualBlock(cost_function,loss_function,pointPtr);
-          break;
-        case 2:
-          // 2D bundle adjustment
-          cost_function = new ceres::AutoDiffCostFunction<AlignmentError2D, 2, 6, 3>(new AlignmentError2D(observePtr));
-          problem.AddResidualBlock(cost_function,loss_function,cameraPtr,pointPtr);
-	
-          break;
-        case 3:
-          // 3D bundle adjustment
-          cost_function = new ceres::AutoDiffCostFunction<AlignmentError3D, 3, 6, 3>(new AlignmentError3D(observePtr));
-          problem.AddResidualBlock(cost_function,loss_function,cameraPtr,pointPtr);
-	      break;
-        
-        case 4:
-          // 3D+2D bundle adjustment
-          
-          if (std::isnan(observePtr[2]))
-          {
-            cost_function = new ceres::AutoDiffCostFunction<AlignmentError2D,   2, 6, 3>(new AlignmentError2D(observePtr));
-          }
-          else
-          {
-            cost_function = new ceres::AutoDiffCostFunction<AlignmentError2D3D, 5, 6, 3>(new AlignmentError2D3D(observePtr));
-           
-          }
-		  problem.AddResidualBlock(cost_function,loss_function,cameraPtr,pointPtr);
-          
-          
-                
-        case 5:
-          // 3D+2D+Trajectory+normal bundle adjustment
-          cost_function = new ceres::AutoDiffCostFunction<AlignmentError2D3D1, 6, 6, 3>(new AlignmentError2D3D1(observePtr));
-          problem.AddResidualBlock(cost_function,loss_function,cameraPtr,pointPtr);
-		  if (flag==1)
-          { 
-			//  std::cout<<"here"<<std::endl;
-        	  cost_function1= new ceres::AutoDiffCostFunction<AlignmentErrortran, 3, 6, 6, 6 >(new AlignmentErrortran(observePtr));
-        	  problem.AddResidualBlock(cost_function1,loss_function,cameraPtr,cameraPtr1,cameraPtr2);
-          
-		  }
-          break;
-          
-		case 6:
-			//3D+2D+Trajectory
-			cost_function = new ceres::AutoDiffCostFunction<AlignmentError2D3D, 5, 6, 3>(new AlignmentError2D3D(observePtr));
-			problem.AddResidualBlock(cost_function,loss_function,cameraPtr,pointPtr);
-			if (flag==1)
-			{ 
-			//  std::cout<<"here"<<std::endl;
-        	  cost_function1= new ceres::AutoDiffCostFunction<AlignmentErrortran, 3, 6, 6, 6 >(new AlignmentErrortran(observePtr));
-        	  problem.AddResidualBlock(cost_function1,loss_function,cameraPtr,cameraPtr1,cameraPtr2);
-          
+			switch (mode)
+			{
+				case 1:																		// 2D triangulation
+					ceres_add_triangulation_function( obs_ptr, camera_ptr, point_ptr_one, \
+													loss_function, problem );
+					break;
+				case 2:																		// 2D bundle adjustment
+					ceres_add_alignment_error_2d_function( obs_ptr, camera_ptr, \
+													point_ptr_one, loss_function, problem );
+					break;
+				case 3:																		// 3D bundle adjustment
+					ceres_add_alignment_error_3d_function( obs_ptr, camera_ptr, \
+													point_ptr_one, loss_function, problem );
+					break;
+				case 4:																		// 3D+2D bundle adjustment
+					ceres_add_alignment_error_2d3d_function( obs_ptr, camera_ptr, \
+													point_ptr_one, loss_function, problem );
+					break;
+				case 5:																		// 3D+2D+Trajectory+normal bundle adjustment
+					ceres_add_alignment_traj_normal_error_function( obs_ptr, camera_ptr, \
+													point_ptr_one, cam_ptr_one, cam_ptr_two, \
+													loss_function, problem, not_first_frame );
+					break;
+				case 6:																		//3D+2D+Trajectory
+					ceres_add_alignment_traj_error_function( obs_ptr, camera_ptr, \
+													point_ptr_one, cam_ptr_one, cam_ptr_two, \
+													loss_function, problem, not_first_frame );
+					break;
+				case 7:																		//3D+2D+Trajectory+box constraints
+					ceres_add_alignment_traj_normal_box_error_function( obs_ptr, camera_ptr, \
+													point_ptr_one, point_cloud, cam_ptr_one, \
+													cam_ptr_two, point_observed_index, \
+													loss_function, problem, random_array, \
+													box_constraints_var, n_points, n_cameras, \
+													n_rand_pairs, id_obs, not_first_frame );
+					break;
 			}
-			break;
-          	
-          	case 7:
-			//3D+2D+Trajectory+box constraints
-			cost_function = new ceres::AutoDiffCostFunction<AlignmentError2D3D, 5, 6, 3>(new AlignmentError2D3D(observePtr));
-			problem.AddResidualBlock(cost_function,loss_function,cameraPtr,pointPtr);
-			if (flag==1)
-			{ 
-			//  std::cout<<"here"<<std::endl;
-        	  //cost_function1= new ceres::AutoDiffCostFunction<AlignmentErrortran, 3, 6, 6, 6 >(new AlignmentErrortran(observePtr));
-        	  //problem.AddResidualBlock(cost_function1,loss_function,cameraPtr,cameraPtr1,cameraPtr2);
-        	  //cost_function1= new ceres::AutoDiffCostFunction<AlignmentErrorbox_new, 3,3, 6, 6, 6 >(new AlignmentErrorbox_new(observePtr,&c));
-        	  //problem.AddResidualBlock(cost_function1,loss_function,&c,cameraPtr,pointPtr,pointPtr1);
-			  int cntr=0;
-					for (unsigned int views=0; views<nCam-1; ++views){
-          			for (int first=0;first<size;first++){
-					    int idObs1=nPts/nCam*views+array[first];
-							if (idObs1==idObs){
-							for (int second=0;second<size;second++)
-								{
-									int idObs2=nPts/nCam*views+array[second];
-									double* pointPtr1  = pointCloud + pointObservedIndex[2*idObs2+1] * 3;
-									if(pointPtr==pointPtr1){}else
-									{ 
-                                //    std::cout<<pointPtr<<" "<<pointPtr1<<" "<<std::endl;
-                               //     ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1, 1,3,3,6>(new AlignmentErrorbox_new1(observePtr));
-                                    ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1,1,3,3,3,6>(new AlignmentErrorbox_new1(observePtr));
-                            //
-                                        problem.AddResidualBlock(cost_function1, loss_function, &c[3*cntr++], pointPtr, pointPtr1, cameraPtr);
-                               //    problem.AddResidualBlock(cost_function1, loss_function,pointPtr,pointPtr1,cameraPtr);
-                                //	problem.SetParameterLowerBound(&c,0,-3);
-                                //	problem.SetParameterUpperBound(&c,0,3);
-									}
-								}
-							}
-						}
-					}
+		}
+		else
+		{
+			double* objectPtr = object_parameter + int(obs_ptr[5]) * 6;
+			ceres::CostFunction* cost_function;
+
+			if (object_weight[int(obs_ptr[5])]>0){
+				switch (object_type[int(obs_ptr[5])]){
+
+					case 0: // a floor
+						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorFloor, 3, 6>(new AlignmentErrorFloor(obs_ptr));
+						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr);
+						break;
+					case 1: // an axis y align object, eg. a ceiling, or a wall
+						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorAxisBox, 3, 6, 4>(new AlignmentErrorAxisBox(obs_ptr));
+						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,objectPtr+2);
+						break;
+					case 2: // a general object
+						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorBox, 3, 6, 6>(new AlignmentErrorBox(obs_ptr));
+						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,objectPtr);
+
+						/*
+						   std::cout<<"Type 2 Object ID="<<int(obs_ptr[5])<<" ";
+						   std::cout<<"camera ID="<<pointObservedIndex[2*idObs]<<" ";
+						   std::cout<<"Observe = ";
+						   std::cout<<obs_ptr[0]<<" ";
+						   std::cout<<obs_ptr[1]<<" ";
+						   std::cout<<obs_ptr[2]<<" ";
+						   std::cout<<obs_ptr[3]<<" ";
+						   std::cout<<obs_ptr[4]<<" ";
+						   std::cout<<obs_ptr[5]<<std::endl;
+						   */
+
+						break;
+					case 3: // mirror
+						break;
+					case 4: // a AlignmentErrorAxisManhattanBox align object
+						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorAxisManhattanBox, 3, 6, 3>(new AlignmentErrorAxisManhattanBox(obs_ptr));
+						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,objectPtr+3);
+						break;
+				}
 			}
-			break;
-		
-	
-      }
-    }else{
-
-      double* objectPtr = objectParameter + int(observePtr[5]) * 6;
-      ceres::CostFunction* cost_function;
-
-      if (objectWeight[int(observePtr[5])]>0){
-          switch (objectType[int(observePtr[5])]){
-
-            case 0: // a floor
-              cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorFloor, 3, 6>(new AlignmentErrorFloor(observePtr));
-              problem.AddResidualBlock(cost_function,loss_functionObject,cameraPtr);
-              break;
-            case 1: // an axis y align object, eg. a ceiling, or a wall
-              cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorAxisBox, 3, 6, 4>(new AlignmentErrorAxisBox(observePtr));
-              problem.AddResidualBlock(cost_function,loss_functionObject,cameraPtr,objectPtr+2);
-              break;
-            case 2: // a general object
-              cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorBox, 3, 6, 6>(new AlignmentErrorBox(observePtr));
-              problem.AddResidualBlock(cost_function,loss_functionObject,cameraPtr,objectPtr);
-
-              /*
-              std::cout<<"Type 2 Object ID="<<int(observePtr[5])<<" ";
-              std::cout<<"camera ID="<<pointObservedIndex[2*idObs]<<" ";
-              std::cout<<"Observe = ";
-              std::cout<<observePtr[0]<<" ";
-              std::cout<<observePtr[1]<<" ";
-              std::cout<<observePtr[2]<<" ";
-              std::cout<<observePtr[3]<<" ";
-              std::cout<<observePtr[4]<<" ";
-              std::cout<<observePtr[5]<<std::endl;
-              */
-
-              break;
-            case 3: // mirror
-              break;
-            case 4: // a AlignmentErrorAxisManhattanBox align object
-              cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorAxisManhattanBox, 3, 6, 3>(new AlignmentErrorAxisManhattanBox(observePtr));
-              problem.AddResidualBlock(cost_function,loss_functionObject,cameraPtr,objectPtr+3);
-              break;
-          }
-      }
-    }
-  }
+		}
+	}
 
 
 	//if (mode==7)
 	//{     
-		//double* cameraPtr3;
-		//double initial_c = 5.0;
-		//double c = initial_c;	
-        //ceres::CostFunction* cost_function1;
-        //ceres::CostFunction* cost_function;
+	//double* camera_ptr3;
+	//double initial_c = 5.0;
+	//double c = initial_c;	
+	//ceres::CostFunction* cost_function1;
+	//ceres::CostFunction* cost_function;
 
-		//for (unsigned int views=0; views<nCam-1; ++views)
-		//{
-			 //int idObs3=nPts/nCam*views+1;
-			 //if (pointObservedIndex[2*idObs3] >= 2)
-			//{		
-				//cameraPtr3 = cameraParameter + (pointObservedIndex[2*idObs3]-1) * 6;
-			//}
-			//double* observePtr = pointObservedValue+6*idObs3;
+	//for (unsigned int views=0; views<nCam-1; ++views)
+	//{
+	//int idObs3=nPts/nCam*views+1;
+	//if (pointObservedIndex[2*idObs3] >= 2)
+	//{		
+	//camera_ptr3 = camera_parameter + (pointObservedIndex[2*idObs3]-1) * 6;
+	//}
+	//double* obs_ptr = pointObservedValue+6*idObs3;
 
-			//}
-		//}
+	//}
+	//}
 
-  //----------------------------------------------------------------
+	//----------------------------------------------------------------
 
-  // Make Ceres automatically detect the bundle structure. Note that the
-  // standard solver, SPARSE_NORMAL_CHOLESKY, also works fine but it is slower
-  // for standard bundle adjustment problems.
-  ceres::Solver::Options options;
-  options.max_num_iterations = 1000;  
-  options.minimizer_progress_to_stdout = true;
-  options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;  //ceres::SPARSE_SCHUR;  //ceres::DENSE_SCHUR;
-  //options.ordering_type = ceres::SCHUR;
-  options.num_linear_solver_threads = 4;
-  /*
-  options.linear_solver_type = ceres::DENSE_SCHUR; //ceres::SPARSE_SCHUR; //ceres::DENSE_SCHUR; //ceres::SPARSE_NORMAL_CHOLESKY; //
-  options.ordering_type = ceres::SCHUR;
-  options.minimizer_progress_to_stdout = true;
-  // New options
-  //options.preconditioner_type = ceres::JACOBI; // ceres::IDENTITY
+	// Make Ceres automatically detect the bundle structure. Note that the
+	// standard solver, SPARSE_NORMAL_CHOLESKY, also works fine but it is slower
+	// for standard bundle adjustment problems.
+	ceres::Solver::Options options;
+	options.max_num_iterations = 1000;  
+	options.minimizer_progress_to_stdout = true;
+	options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;  //ceres::SPARSE_SCHUR;  //ceres::DENSE_SCHUR;
+	//options.ordering_type = ceres::SCHUR;
+	options.num_linear_solver_threads = 4;
+	/*
+	   options.linear_solver_type = ceres::DENSE_SCHUR; //ceres::SPARSE_SCHUR; //ceres::DENSE_SCHUR; //ceres::SPARSE_NORMAL_CHOLESKY; //
+	   options.ordering_type = ceres::SCHUR;
+	   options.minimizer_progress_to_stdout = true;
+	// New options
+	//options.preconditioner_type = ceres::JACOBI; // ceres::IDENTITY
 
-  //options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
-  //options.use_block_amd = true;
-  //options.eta=1e-2;
-  //options.dogleg_type = ceres::TRADITIONAL_DOGLEG;
-  //options.use_nonmonotonic_steps=false;
-  */
-  
-/*
-  options.trust_region_strategy_type =  ceres::LEVENBERG_MARQUARDT; // DEFINE_string(trust_region_strategy, "lm", "Options are: lm, dogleg");
-  options.eta = 1e-2; //  DEFINE_double(eta, 1e-2, "Default value for eta. Eta determines the accuracy of each linear solve of the truncated newton step. Changing this parameter can affect solve performance ");
-  options.linear_solver_type = ceres::SPARSE_SCHUR; //DEFINE_string(solver_type, "sparse_schur", "Options are:  sparse_schur, dense_schur, iterative_schur, sparse_cholesky,  dense_qr, dense_cholesky and conjugate_gradients");
-  options.preconditioner_type = ceres::JACOBI; //DEFINE_string(preconditioner_type, "jacobi", "Options are:  identity, jacobi, schur_jacobi, cluster_jacobi,  cluster_tridiagonal");
-  options.sparse_linear_algebra_library =  ceres::SUITE_SPARSE; //DEFINE_string(sparse_linear_algebra_library, "suitesparse", "Options are: suitesparse and cxsparse");
-  options.ordering_type = ceres::SCHUR; //DEFINE_string(ordering_type, "schur", "Options are: schur, user, natural");
-  options.dogleg_type =  ceres::TRADITIONAL_DOGLEG; //DEFINE_string(dogleg_type, "traditional", "Options are: traditional, subspace");
-  options.use_block_amd = true; //DEFINE_bool(use_block_amd, true, "Use a block oriented fill reducing ordering.");
-  options.num_threads = 1; //DEFINE_int32(num_threads, 1, "Number of threads");
-  options.linear_solver_min_num_iterations = 5; //DEFINE_int32(num_iterations, 5, "Number of iterations");
-  options.use_nonmonotonic_steps = false; //DEFINE_bool(nonmonotonic_steps, false, "Trust region algorithm can use nonmonotic steps");
-//DEFINE_double(rotation_sigma, 0.0, "Standard deviation of camera rotation perturbation.");
-//DEFINE_double(translation_sigma, 0.0, "Standard deviation of the camera translation perturbation.");
-//DEFINE_double(point_sigma, 0.0, "Standard deviation of the point perturbation");
-//DEFINE_int32(random_seed, 38401, "Random seed used to set the state of the pseudo random number generator used to generate the pertubations.");
-*/  
-  
-  //ceres::Solve(options, &problem, NULL);
-  ceres::Solver::Summary summary;
-  ceres::Solve(options, &problem, &summary);
-  //std::cout << summary.FullReport() << std::endl;
-  std::cout << summary.BriefReport() << std::endl;
-  
-  // obtain camera matrix from parameters
-  for(int cameraID=0; cameraID<nCam; ++cameraID){
-      double* cameraPtr = cameraParameter+6*cameraID;
-      double* cameraMat = cameraRt+12*cameraID;
-      if (!(std::isnan(*cameraPtr))){
-          ceres::AngleAxisToRotationMatrix<double>(cameraPtr,cameraMat);
-          cameraMat[9]  = cameraPtr[3];
-          cameraMat[10] = cameraPtr[4];
-          cameraMat[11] = cameraPtr[5];
-          //std::cout<<"cameraID="<<cameraID<<" : ";
-          //std::cout<<"cameraPtr="<<cameraPtr[0]<<" "<<cameraPtr[1]<<" "<<cameraPtr[2]<<" "<<cameraPtr[3]<<" "<<cameraPtr[4]<<" "<<cameraPtr[5]<<std::endl;
-      }
-  }
+	//options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
+	//options.use_block_amd = true;
+	//options.eta=1e-2;
+	//options.dogleg_type = ceres::TRADITIONAL_DOGLEG;
+	//options.use_nonmonotonic_steps=false;
+	*/
 
-  for(int objectID=0; objectID<nObjects; ++objectID){
-      double* objectPtr = objectParameter+6*objectID;
-      double* objectMat = objectRt+12*objectID;
-      if (!(std::isnan(*objectPtr))){
+	/*
+	   options.trust_region_strategy_type =  ceres::LEVENBERG_MARQUARDT; // DEFINE_string(trust_region_strategy, "lm", "Options are: lm, dogleg");
+	   options.eta = 1e-2; //  DEFINE_double(eta, 1e-2, "Default value for eta. Eta determines the accuracy of each linear solve of the truncated newton step. Changing this parameter can affect solve performance ");
+	   options.linear_solver_type = ceres::SPARSE_SCHUR; //DEFINE_string(solver_type, "sparse_schur", "Options are:  sparse_schur, dense_schur, iterative_schur, sparse_cholesky,  dense_qr, dense_cholesky and conjugate_gradients");
+	   options.preconditioner_type = ceres::JACOBI; //DEFINE_string(preconditioner_type, "jacobi", "Options are:  identity, jacobi, schur_jacobi, cluster_jacobi,  cluster_tridiagonal");
+	   options.sparse_linear_algebra_library =  ceres::SUITE_SPARSE; //DEFINE_string(sparse_linear_algebra_library, "suitesparse", "Options are: suitesparse and cxsparse");
+	   options.ordering_type = ceres::SCHUR; //DEFINE_string(ordering_type, "schur", "Options are: schur, user, natural");
+	   options.dogleg_type =  ceres::TRADITIONAL_DOGLEG; //DEFINE_string(dogleg_type, "traditional", "Options are: traditional, subspace");
+	   options.use_block_amd = true; //DEFINE_bool(use_block_amd, true, "Use a block oriented fill reducing ordering.");
+	   options.num_threads = 1; //DEFINE_int32(num_threads, 1, "Number of threads");
+	   options.linear_solver_min_num_iterations = 5; //DEFINE_int32(num_iterations, 5, "Number of iterations");
+	   options.use_nonmonotonic_steps = false; //DEFINE_bool(nonmonotonic_steps, false, "Trust region algorithm can use nonmonotic steps");
+	//DEFINE_double(rotation_sigma, 0.0, "Standard deviation of camera rotation perturbation.");
+	//DEFINE_double(translation_sigma, 0.0, "Standard deviation of the camera translation perturbation.");
+	//DEFINE_double(point_sigma, 0.0, "Standard deviation of the point perturbation");
+	//DEFINE_int32(random_seed, 38401, "Random seed used to set the state of the pseudo random number generator used to generate the pertubations.");
+	*/  
 
-          if (objectType[objectID]==1){
-             std::cout<<"Type 1 object="<<objectID<<" : "<<objectPtr[0]<<" "<<objectPtr[1]<<" "<<objectPtr[2]<<std::endl;
-             objectPtr[1] = -objectPtr[2];
-             objectPtr[2] = 0;
-          }
+	//ceres::Solve(options, &problem, NULL);
+	ceres::Solver::Summary summary;
+	ceres::Solve(options, &problem, &summary);
+	//std::cout << summary.FullReport() << std::endl;
+	std::cout << summary.BriefReport() << std::endl;
 
-          ceres::AngleAxisToRotationMatrix<double>(objectPtr, objectMat);
-          objectMat[9]  = objectPtr[3];
-          objectMat[10] = objectPtr[4];
-          objectMat[11] = objectPtr[5];
-      }
-  }
+	// obtain camera matrix from parameters
+	for(int cameraID=0; cameraID<n_cameras; ++cameraID){
+		double* camera_ptr = camera_parameter+6*cameraID;
+		double* cameraMat = camera_matrix+12*cameraID;
+		if (!(std::isnan(*camera_ptr))){
+			ceres::AngleAxisToRotationMatrix<double>(camera_ptr,cameraMat);
+			cameraMat[9]  = camera_ptr[3];
+			cameraMat[10] = camera_ptr[4];
+			cameraMat[11] = camera_ptr[5];
+			//std::cout<<"cameraID="<<cameraID<<" : ";
+			//std::cout<<"camera_ptr="<<camera_ptr[0]<<" "<<camera_ptr[1]<<" "<<camera_ptr[2]<<" "<<camera_ptr[3]<<" "<<camera_ptr[4]<<" "<<camera_ptr[5]<<std::endl;
+		}
+	}
 
+	for(int objectID=0; objectID<n_objects; ++objectID){
+		double* objectPtr = object_parameter+6*objectID;
+		double* objectMat = object_rot_trans+12*objectID;
+		if (!(std::isnan(*objectPtr))){
 
-  // write back result files
-//  std::cout<<nCam<<" "<<nPts<<" "<<c<<std::endl;
-  FILE* fpout = fopen(argv[4],"wb");
-  fwrite((void*)(&nCam), sizeof(unsigned int), 1, fpout);
-  fwrite((void*)(&nPts), sizeof(unsigned int), 1, fpout);
-  fwrite((void*)(&nObjects), sizeof(unsigned int), 1, fpout);
+			if (object_type[objectID]==1){
+				std::cout<<"Type 1 object="<<objectID<<" : "<<objectPtr[0]<<" "<<objectPtr[1]<<" "<<objectPtr[2]<<std::endl;
+				objectPtr[1] = -objectPtr[2];
+				objectPtr[2] = 0;
+			}
 
-  fwrite((void*)(cameraRt), sizeof(double), 12*nCam, fpout);
-  fwrite((void*)(pointCloud), sizeof(double), 3*nPts, fpout);
-  fwrite((void*)(objectRt), sizeof(double), 12*nObjects, fpout);
-  
+			ceres::AngleAxisToRotationMatrix<double>(objectPtr, objectMat);
+			objectMat[9]  = objectPtr[3];
+			objectMat[10] = objectPtr[4];
+			objectMat[11] = objectPtr[5];
+		}
+	}
 
 
-  fclose (fpout);
+	// write back result files
+	//  std::cout<<nCam<<" "<<nPts<<" "<<c<<std::endl;
+	FILE* fpout = fopen(argv[4],"wb");
+	fwrite((void*)(&n_cameras), sizeof(unsigned int), 1, fpout);
+	fwrite((void*)(&n_points), sizeof(unsigned int), 1, fpout);
+	fwrite((void*)(&n_objects), sizeof(unsigned int), 1, fpout);
 
-   //clean up
-  delete [] cameraRt;
-  delete [] objectRt;
-  delete [] pointCloud;
-  delete [] pointObservedIndex;
-  delete [] pointObservedValue;
-  delete [] cameraParameter;
-  delete [] objectParameter;
+	fwrite((void*)(camera_matrix), sizeof(double), 12*n_cameras, fpout);
+	fwrite((void*)(point_cloud), sizeof(double), 3*n_points, fpout);
+	fwrite((void*)(object_rot_trans), sizeof(double), 12*n_objects, fpout);
 
-  delete [] objectHalfSize;
-  delete [] objectWeight;
-  delete [] objectType;
 
-  return 0;  
+
+	fclose (fpout);
+
+	//clean up
+	delete [] camera_matrix;
+	delete [] object_rot_trans;
+	delete [] point_cloud;
+	delete [] point_observed_index;
+	delete [] point_observed_value;
+	delete [] camera_parameter;
+	delete [] object_parameter;
+
+	delete [] object_half_size;
+	delete [] object_weight;
+	delete [] object_type;
+
+	return 0;  
 }
