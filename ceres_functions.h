@@ -1025,7 +1025,7 @@ struct AlignmentErrortran
 	double* observed;
 };
 
-
+/*
 struct AlignmentErrorbox_new 
 {
 	AlignmentErrorbox_new(double* observed_in): observed(observed_in) {}
@@ -1038,7 +1038,6 @@ struct AlignmentErrorbox_new
 					const T* const point2, 
 						  T* residuals) const 
 	{
-		/*             
 		// camera_extrinsic[0,1,2] are the angle-axis rotation.
 		T p[3];
 		T p1[3];    
@@ -1090,7 +1089,6 @@ struct AlignmentErrorbox_new
 				p[2] = -EPS;
 			}
 		}
-		*/
 
 
 			//if (exe_time<10){
@@ -1115,7 +1113,100 @@ struct AlignmentErrorbox_new
 	}
 	double* observed;
 };
+*/
 
+struct AlignmentErrorbox_new 
+{
+	AlignmentErrorbox_new(double* observed_in): observed(observed_in) {}
+	template <typename T>
+
+	bool operator()(const T* const c,
+					const T* const point,
+					const T* const point2,
+					const T* const camera_extrinsic, 
+						  T* residuals) const 
+	{
+
+		// camera_extrinsic[0,1,2] are the angle-axis rotation.
+		T p[3];
+		T p1[3];    
+
+		ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
+		ceres::AngleAxisRotatePoint(camera_extrinsic, point2, p1);
+
+		//T x = camera_extrinsic[0];
+		//T y = camera_extrinsic[1];
+		//T z = camera_extrinsic[2];
+		//T x2 = x*x;
+		//T y2 = y*y;
+		//T z2 = z*z;    
+		//T w2 = T(1.0) - x2 - y2 - z2;
+		//T w  = sqrt(w2);
+
+		//p[0] = point[0]*(w2 + x2 - y2 - z2) - point[1]*(T(2.0)*w*z - T(2.0)*x*y) + point[2]*(T(2.0)*w*y + T(2.0)*x*z);
+		//p[1] = point[1]*(w2 - x2 + y2 - z2) + point[0]*(T(2.0)*w*z + T(2.0)*x*y) - point[2]*(T(2.0)*w*x - T(2.0)*y*z);
+		//p[2] = point[2]*(w2 - x2 - y2 + z2) - point[0]*(T(2.0)*w*y - T(2.0)*x*z) + point[1]*(T(2.0)*w*x + T(2.0)*y*z);
+
+		// camera_extrinsic[3,4,5] are the translation.
+		p[0] += camera_extrinsic[3];
+		p[1] += camera_extrinsic[4];
+		p[2] += camera_extrinsic[5];
+
+		// camera_extrinsic[3,4,5] are the translation.
+		p1[0] += camera_extrinsic[3];
+		p1[1] += camera_extrinsic[4];
+		p1[2] += camera_extrinsic[5];
+		//std::cout<<p[0]<<" "<<p1[0]<<std::endl;
+		//// The error is the difference between the predicted and observed position.
+
+		// residuals[0] = (p[1] - p1[1] - c[0]) ; //temp[0] - temp1[0]);
+		// residuals[0] =  (sqrt(pow(p[0] - p1[0],2)+pow(p[1] - p1[1],2)+pow(p[2] - p1[2],2))-c[0]);
+		// residuals[0] =  (sqrt(pow(p[0] - p1[0] - c[0],2)+pow(p[1] - p1[1] - c[1],2)+pow(p[2] - p1[2] - c[2],2)));
+		residuals[0] = (p[0]-p1[0]-c[0]);
+		residuals[1] = (p[1]-p1[1]-c[0]);
+		residuals[2] = (p[2]-p1[2]-c[0]);
+		// std:
+		// residuals[1] = (p[1] - p1[1] - c[1]);//(p[0] - p1[0] + c);
+		// residuals[2] = (p[2] - p1[2] - c[2]); //(p[0] - p1[0] + c);
+
+		// std::cout<<"Outputting c[0]"<<c[0]<<" "<<std::endl;
+
+		//// let p[2] ~= 0
+		//if (T(0.0)<=p[2]){
+		//if(p[2]<EPS){
+		//p[2] = EPS;
+		//}
+		//}else{
+		//if (p[2]>-EPS){
+		//p[2] = -EPS;
+		//}
+		//}
+
+		////if (exe_time<10){
+		//exe_time ++;
+		//std::cout<<"fx="<<fx<<std::endl;
+		//std::cout<<"fy="<<fy<<std::endl;
+		//std::cout<<"px="<<px<<std::endl;
+		//std::cout<<"py="<<py<<std::endl;
+		//std::cout<<"w3Dv2D="<<w3Dv2D<<std::endl;
+		//std::cout<<"p[0]="<<p[0]<<std::endl;
+		//std::cout<<"p[1]="<<p[1]<<std::endl;
+		//std::cout<<"p1[0]="<<p1[0]<<std::endl;
+		//std::cout<<"p1[1]="<<p1[1]<<std::endl;
+		//std::cout<<"observed[0]="<<observed[0]<<std::endl;
+		//std::cout<<"observed[1]="<<observed[1]<<std::endl;
+		//std::cout<<"residuals[0][0]="<<residuals[0]<<std::endl;
+		//std::cout<<"residuals[1]="<<residuals[1]<<std::endl;
+		//std::cout<<"residuals[2]="<<residuals[2]<<std::endl;
+		//std::cout<<"--------------------------"<<std::endl;
+		//}
+
+		return true;
+	}
+	double* observed;
+
+};
+ 
 
 struct AlignmentErrorbox_new1 
 {
@@ -1235,8 +1326,15 @@ void ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double
 														 double *cam_ptr_one, double *cam_ptr_two, unsigned int *point_observed_index, 
 														 ceres::LossFunction *loss_function, ceres::Problem &problem, 
 														 unsigned int *random_array, double *box_constraints_var, int n_points, int n_camera, 
-														 int n_rand_pairs, int id_obs, int not_first_frame );
+														 int n_rand_pairs, int id_obs, int mode, int not_first_frame );
 
+void ceres_add_box_constraints_scalar( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem );
+
+void ceres_add_box_constraints_vector( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem );
+
+void ceres_add_box_constraints_partial( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem );
+
+void ceres_add_box_constraints_all( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem );
 #endif /* ifndef CERES_FUNCTIONS_H */
 
 

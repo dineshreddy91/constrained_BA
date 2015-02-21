@@ -143,7 +143,7 @@ void ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double
 														 double *cam_ptr_one, double *cam_ptr_two, unsigned int *point_observed_index, 
 														 ceres::LossFunction *loss_function, ceres::Problem &problem, 
 														 unsigned int *random_array, double *box_constraints_var, int n_points, int n_cameras, 
-														 int n_rand_pairs, int id_obs, int not_first_frame )
+														 int n_rand_pairs, int id_obs, int mode, int not_first_frame )
 {
 	double *point_ptr_two;
 
@@ -166,16 +166,57 @@ void ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double
 						point_ptr_two	=	point_cloud + point_observed_index[ 2*id_obs_two+1 ] * 3;
 						if( point_ptr_one != point_ptr_two )
 						{ 
-							ceres::CostFunction* cost_function1 = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1,3,3,3,3,6>(new AlignmentErrorbox_new1(obs_ptr));
-							problem.AddResidualBlock( cost_function1, loss_function, &box_constraints_var[3*cntr], point_ptr_one, point_ptr_two, camera_ptr );
-							problem.SetParameterLowerBound( &box_constraints_var[3*cntr], 0, -3 );
-							problem.SetParameterUpperBound( &box_constraints_var[3*cntr], 0, 3 );
-							cntr++;
+							if( mode == 7 )
+								ceres_add_box_constraints_all( obs_ptr, camera_ptr, point_ptr_one, point_ptr_two, box_constraints_var + 3*cntr, loss_function, problem );
+							else if( mode == 8 )
+								ceres_add_box_constraints_partial( obs_ptr, camera_ptr, point_ptr_one, point_ptr_two, box_constraints_var + cntr, loss_function, problem );
+							else if( mode == 9 )
+								ceres_add_box_constraints_vector( obs_ptr, camera_ptr, point_ptr_one, point_ptr_two, box_constraints_var, loss_function, problem );
+							else
+								ceres_add_box_constraints_scalar( obs_ptr, camera_ptr, point_ptr_one, point_ptr_two, box_constraints_var, loss_function, problem );
+
+							if( mode < 9 ) cntr++;
 						}
 					}
 				}
 			}
 		}
 	}
+	return;
+}
+
+void ceres_add_box_constraints_vector( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem )
+{
+	ceres::CostFunction* cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1,3,3,3,3,6>( new AlignmentErrorbox_new1( obs_ptr ) );
+	problem.AddResidualBlock( cost_function, loss_function, box_constraints_var, point_ptr_one, point_ptr_two, camera_ptr );
+	problem.SetParameterLowerBound( box_constraints_var, 0, -3 );								// FREE VARIABLE WARNING
+	problem.SetParameterUpperBound( box_constraints_var, 0, 3 );								// FREE VARIABLE WARNING
+	return;
+}
+
+void ceres_add_box_constraints_scalar( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem )
+{
+	ceres::CostFunction* cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new,3,1,3,3,6>( new AlignmentErrorbox_new( obs_ptr ) );
+	problem.AddResidualBlock( cost_function, loss_function, box_constraints_var, point_ptr_one, point_ptr_two, camera_ptr );
+	problem.SetParameterLowerBound( box_constraints_var, 0, -3 );								// FREE VARIABLE WARNING
+	problem.SetParameterUpperBound( box_constraints_var, 0, 3 );								// FREE VARIABLE WARNING
+	return;
+}
+
+void ceres_add_box_constraints_partial( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem )
+{
+	ceres::CostFunction* cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new,3,1,3,3,6>( new AlignmentErrorbox_new( obs_ptr ) );
+	problem.AddResidualBlock( cost_function, loss_function, box_constraints_var, point_ptr_one, point_ptr_two, camera_ptr );
+	problem.SetParameterLowerBound( box_constraints_var, 0, -3 );								// FREE VARIABLE WARNING
+	problem.SetParameterUpperBound( box_constraints_var, 0, 3 );								// FREE VARIABLE WARNING
+	return;
+}
+
+void ceres_add_box_constraints_all( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem )
+{
+	ceres::CostFunction* cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorbox_new1,3,3,3,3,6>( new AlignmentErrorbox_new1( obs_ptr ) );
+	problem.AddResidualBlock( cost_function, loss_function, box_constraints_var, point_ptr_one, point_ptr_two, camera_ptr );
+	problem.SetParameterLowerBound( box_constraints_var, 0, -3 );								// FREE VARIABLE WARNING
+	problem.SetParameterUpperBound( box_constraints_var, 0, 3 );								// FREE VARIABLE WARNING
 	return;
 }

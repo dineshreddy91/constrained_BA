@@ -166,6 +166,7 @@ int main(int argc, char** argv)
 		if( obs_ptr[5] < 0 )																// This is trivially true for matlab box_synthetic.m example
 		{
 			double* point_ptr_one	=	point_cloud + point_observed_index[ 2*id_obs+1 ] * 3;
+			cout << "<-------------------------------- In Mode " << mode << " ----------------------------------->" << endl;
 
 			switch (mode)
 			{
@@ -196,79 +197,49 @@ int main(int argc, char** argv)
 													loss_function, problem, not_first_frame );
 					break;
 				case 7:																		//3D+2D+Trajectory+box constraints
+				case 8:
+				case 9:
+				case 10:
 					ceres_add_alignment_traj_normal_box_error_function( obs_ptr, camera_ptr, \
 													point_ptr_one, point_cloud, cam_ptr_one, \
 													cam_ptr_two, point_observed_index, \
 													loss_function, problem, random_array, \
 													box_constraints_var, n_points, n_cameras, \
-													n_rand_pairs, id_obs, not_first_frame );
+													n_rand_pairs, id_obs, mode, not_first_frame );
 					break;
 			}
 		}
 		else
 		{
-			double* objectPtr = object_parameter + int(obs_ptr[5]) * 6;
+			double* object_ptr = object_parameter + int(obs_ptr[5]) * 6;
 			ceres::CostFunction* cost_function;
 
-			if (object_weight[int(obs_ptr[5])]>0){
-				switch (object_type[int(obs_ptr[5])]){
-
-					case 0: // a floor
+			if( object_weight[ int( obs_ptr[5] ) ] > 0 )
+			{
+				switch( object_type[ int( obs_ptr[5] ) ] )
+				{
+					case 0:																	// a floor
 						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorFloor, 3, 6>(new AlignmentErrorFloor(obs_ptr));
 						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr);
 						break;
-					case 1: // an axis y align object, eg. a ceiling, or a wall
+					case 1:																	// an axis y align object, eg. a ceiling, or a wall
 						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorAxisBox, 3, 6, 4>(new AlignmentErrorAxisBox(obs_ptr));
-						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,objectPtr+2);
+						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,object_ptr+2);
 						break;
-					case 2: // a general object
+					case 2:																	// a general object
 						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorBox, 3, 6, 6>(new AlignmentErrorBox(obs_ptr));
-						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,objectPtr);
-
-						/*
-						   std::cout<<"Type 2 Object ID="<<int(obs_ptr[5])<<" ";
-						   std::cout<<"camera ID="<<pointObservedIndex[2*idObs]<<" ";
-						   std::cout<<"Observe = ";
-						   std::cout<<obs_ptr[0]<<" ";
-						   std::cout<<obs_ptr[1]<<" ";
-						   std::cout<<obs_ptr[2]<<" ";
-						   std::cout<<obs_ptr[3]<<" ";
-						   std::cout<<obs_ptr[4]<<" ";
-						   std::cout<<obs_ptr[5]<<std::endl;
-						   */
-
+						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,object_ptr);
 						break;
-					case 3: // mirror
+					case 3:																	// mirror
 						break;
-					case 4: // a AlignmentErrorAxisManhattanBox align object
+					case 4:																	// a AlignmentErrorAxisManhattanBox align object
 						cost_function = new ceres::AutoDiffCostFunction<AlignmentErrorAxisManhattanBox, 3, 6, 3>(new AlignmentErrorAxisManhattanBox(obs_ptr));
-						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,objectPtr+3);
+						problem.AddResidualBlock(cost_function,loss_functionObject,camera_ptr,object_ptr+3);
 						break;
 				}
 			}
 		}
 	}
-
-
-	//if (mode==7)
-	//{     
-	//double* camera_ptr3;
-	//double initial_c = 5.0;
-	//double c = initial_c;	
-	//ceres::CostFunction* cost_function1;
-	//ceres::CostFunction* cost_function;
-
-	//for (unsigned int views=0; views<nCam-1; ++views)
-	//{
-	//int idObs3=nPts/nCam*views+1;
-	//if (pointObservedIndex[2*idObs3] >= 2)
-	//{		
-	//camera_ptr3 = camera_parameter + (pointObservedIndex[2*idObs3]-1) * 6;
-	//}
-	//double* obs_ptr = pointObservedValue+6*idObs3;
-
-	//}
-	//}
 
 	//----------------------------------------------------------------
 
@@ -276,41 +247,46 @@ int main(int argc, char** argv)
 	// standard solver, SPARSE_NORMAL_CHOLESKY, also works fine but it is slower
 	// for standard bundle adjustment problems.
 	ceres::Solver::Options options;
-	options.max_num_iterations = 1000;  
-	options.minimizer_progress_to_stdout = true;
-	options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;  //ceres::SPARSE_SCHUR;  //ceres::DENSE_SCHUR;
-	//options.ordering_type = ceres::SCHUR;
+	options.max_num_iterations					=	1000;  
+	options.minimizer_progress_to_stdout		=	true;
+	options.linear_solver_type					=	ceres::SPARSE_NORMAL_CHOLESKY;			//ceres::SPARSE_SCHUR;  //ceres::DENSE_SCHUR;
 	options.num_linear_solver_threads = 4;
-	/*
-	   options.linear_solver_type = ceres::DENSE_SCHUR; //ceres::SPARSE_SCHUR; //ceres::DENSE_SCHUR; //ceres::SPARSE_NORMAL_CHOLESKY; //
-	   options.ordering_type = ceres::SCHUR;
-	   options.minimizer_progress_to_stdout = true;
-	// New options
-	//options.preconditioner_type = ceres::JACOBI; // ceres::IDENTITY
-
-	//options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
-	//options.use_block_amd = true;
-	//options.eta=1e-2;
-	//options.dogleg_type = ceres::TRADITIONAL_DOGLEG;
-	//options.use_nonmonotonic_steps=false;
-	*/
 
 	/*
-	   options.trust_region_strategy_type =  ceres::LEVENBERG_MARQUARDT; // DEFINE_string(trust_region_strategy, "lm", "Options are: lm, dogleg");
-	   options.eta = 1e-2; //  DEFINE_double(eta, 1e-2, "Default value for eta. Eta determines the accuracy of each linear solve of the truncated newton step. Changing this parameter can affect solve performance ");
-	   options.linear_solver_type = ceres::SPARSE_SCHUR; //DEFINE_string(solver_type, "sparse_schur", "Options are:  sparse_schur, dense_schur, iterative_schur, sparse_cholesky,  dense_qr, dense_cholesky and conjugate_gradients");
-	   options.preconditioner_type = ceres::JACOBI; //DEFINE_string(preconditioner_type, "jacobi", "Options are:  identity, jacobi, schur_jacobi, cluster_jacobi,  cluster_tridiagonal");
-	   options.sparse_linear_algebra_library =  ceres::SUITE_SPARSE; //DEFINE_string(sparse_linear_algebra_library, "suitesparse", "Options are: suitesparse and cxsparse");
-	   options.ordering_type = ceres::SCHUR; //DEFINE_string(ordering_type, "schur", "Options are: schur, user, natural");
-	   options.dogleg_type =  ceres::TRADITIONAL_DOGLEG; //DEFINE_string(dogleg_type, "traditional", "Options are: traditional, subspace");
-	   options.use_block_amd = true; //DEFINE_bool(use_block_amd, true, "Use a block oriented fill reducing ordering.");
-	   options.num_threads = 1; //DEFINE_int32(num_threads, 1, "Number of threads");
-	   options.linear_solver_min_num_iterations = 5; //DEFINE_int32(num_iterations, 5, "Number of iterations");
-	   options.use_nonmonotonic_steps = false; //DEFINE_bool(nonmonotonic_steps, false, "Trust region algorithm can use nonmonotic steps");
-	//DEFINE_double(rotation_sigma, 0.0, "Standard deviation of camera rotation perturbation.");
-	//DEFINE_double(translation_sigma, 0.0, "Standard deviation of the camera translation perturbation.");
-	//DEFINE_double(point_sigma, 0.0, "Standard deviation of the point perturbation");
-	//DEFINE_int32(random_seed, 38401, "Random seed used to set the state of the pseudo random number generator used to generate the pertubations.");
+	 * Unused options, commented for now.
+		options.ordering_type					=	ceres::SCHUR;
+		options.linear_solver_type				=	ceres::DENSE_SCHUR;						//ceres::SPARSE_SCHUR; //ceres::DENSE_SCHUR; //ceres::SPARSE_NORMAL_CHOLESKY; //
+		options.ordering_type					=	ceres::SCHUR;
+		options.minimizer_progress_to_stdout	=	true;
+		options.preconditioner_type				=	ceres::JACOBI;							// ceres::IDENTITY
+		options.trust_region_strategy_type		=	ceres::LEVENBERG_MARQUARDT;
+		options.use_block_amd					=	true;
+		options.eta								=	1e-2;
+		options.dogleg_type						=	ceres::TRADITIONAL_DOGLEG;
+		options.use_nonmonotonic_steps			=	false;
+
+		options.trust_region_strategy_type		=	ceres::LEVENBERG_MARQUARDT;				// DEFINE_string(trust_region_strategy, "lm", "Options are: lm, dogleg");
+		options.eta								=	1e-2;									// DEFINE_double(eta, 1e-2, "Default value for eta. Eta determines 
+																							// the accuracy of each linear solve of the truncated newton step. 
+																							// Changing this parameter can affect solve performance ");
+		options.linear_solver_type				=	ceres::SPARSE_SCHUR;					// DEFINE_string(solver_type, "sparse_schur", "Options are:  
+																							// sparse_schur, dense_schur, iterative_schur, sparse_cholesky,  dense_qr, 
+																							// dense_cholesky and conjugate_gradients");
+		options.preconditioner_type				=	ceres::JACOBI;							// DEFINE_string(preconditioner_type, "jacobi", "Options are:  identity, 
+																							// jacobi, schur_jacobi, cluster_jacobi,  cluster_tridiagonal");
+		options.sparse_linear_algebra_library	=	 ceres::SUITE_SPARSE;					// DEFINE_string(sparse_linear_algebra_library, "suitesparse", "Options 
+																							// are: suitesparse and cxsparse");
+		options.ordering_type					=	ceres::SCHUR;							// DEFINE_string(ordering_type, "schur", "Options are: schur, user, natural");
+		options.dogleg_type						=	ceres::TRADITIONAL_DOGLEG;				// DEFINE_string(dogleg_type, "traditional", "Options are: traditional, subspace");
+		options.use_block_amd					=	true;									// DEFINE_bool(use_block_amd, true, "Use a block oriented fill reducing ordering.");
+		options.num_threads						=	1;										// DEFINE_int32(num_threads, 1, "Number of threads");
+		options.linear_solver_min_num_iterations=	5;										// DEFINE_int32(num_iterations, 5, "Number of iterations");
+		options.use_nonmonotonic_steps			=	false;									// DEFINE_bool(nonmonotonic_steps, false, "Trust region 
+																							// algorithm can use nonmonotic steps");
+		DEFINE_double( rotation_sigma, 0.0, "Standard deviation of camera rotation perturbation." );
+		DEFINE_double( translation_sigma, 0.0, "Standard deviation of the camera translation perturbation." );
+		DEFINE_double( point_sigma, 0.0, "Standard deviation of the point perturbation" );
+		DEFINE_int32( random_seed, 38401, "Random seed used to set the state of the pseudo random number generator used to generate the pertubations." );
 	*/  
 
 	//ceres::Solve(options, &problem, NULL);
@@ -334,20 +310,20 @@ int main(int argc, char** argv)
 	}
 
 	for(int objectID=0; objectID<n_objects; ++objectID){
-		double* objectPtr = object_parameter+6*objectID;
+		double* object_ptr = object_parameter+6*objectID;
 		double* objectMat = object_rot_trans+12*objectID;
-		if (!(std::isnan(*objectPtr))){
+		if (!(std::isnan(*object_ptr))){
 
 			if (object_type[objectID]==1){
-				std::cout<<"Type 1 object="<<objectID<<" : "<<objectPtr[0]<<" "<<objectPtr[1]<<" "<<objectPtr[2]<<std::endl;
-				objectPtr[1] = -objectPtr[2];
-				objectPtr[2] = 0;
+				std::cout<<"Type 1 object="<<objectID<<" : "<<object_ptr[0]<<" "<<object_ptr[1]<<" "<<object_ptr[2]<<std::endl;
+				object_ptr[1] = -object_ptr[2];
+				object_ptr[2] = 0;
 			}
 
-			ceres::AngleAxisToRotationMatrix<double>(objectPtr, objectMat);
-			objectMat[9]  = objectPtr[3];
-			objectMat[10] = objectPtr[4];
-			objectMat[11] = objectPtr[5];
+			ceres::AngleAxisToRotationMatrix<double>(object_ptr, objectMat);
+			objectMat[9]  = object_ptr[3];
+			objectMat[10] = object_ptr[4];
+			objectMat[11] = object_ptr[5];
 		}
 	}
 
