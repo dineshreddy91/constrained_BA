@@ -1,6 +1,6 @@
 /* ceres_functions.h
  *
- * Copyright (c)2015 Visesh Chari <visesh [at] research.iiit.net>
+ * Copyright (c)2007 Visesh Chari <visesh [at] research.iiit.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,13 +23,48 @@
 #include <cmath>
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
-#include "vector_utils.h"
 
 using namespace std;
 #define EPS T(0.00001)
 
 extern double fx, fy, px, py, w3Dv2D;
 extern double *object_half_size, *object_weight;
+
+/*
+* p[0] += T(camera_extrinsic[3]);
+* p[1] += T(camera_extrinsic[4]);
+* p[2] += T(camera_extrinsic[5]);
+* 
+* // let p[2] ~= 0
+* if (T(0.0)<=p[2]){
+*	if(p[2]<EPS){
+*		p[2] = EPS;
+*	}
+* }else{
+*	if (p[2]>-EPS){
+*		p[2] = -EPS;
+*	}
+* }
+*/
+template <class T>
+T bandFunction(T x, T halfWin)
+{
+	return T(1.0)/(T(1.0)+exp(T(-100.0)*(x-halfWin))) + T(1.0)/(T(1.0)+exp(T(-100.0)*(-x-halfWin)));
+}
+
+template <class T>
+T hingeLoss(T x, T halfWin)
+{
+	//return max(T(0), T(-halfWin)-x) + max(T(0), T(-halfWin)+x);
+	if (x< -halfWin){
+		//return -halfWin - x;
+		return x + halfWin;
+	}else if (x<halfWin){
+		return 0;
+	}else{
+		return x-halfWin;
+	}
+}
 
 template <class T>
 void set_residual_hinge_loss( T q, T sz_ptr, T obj_wt, T &residual )
@@ -42,29 +77,29 @@ void set_residual_hinge_loss( T q, T sz_ptr, T obj_wt, T &residual )
         residual = obj_wt * ( q - sz_ptr );
     return ;
 }
-
-template <class T>
-void set_projection_precision( T *p )
-{
-    if( p[2] >= T(0.0) ){ if( p[2] < EPS ) p[2] = EPS; }
-    else if( p[2] > -EPS ) p[2] = -EPS;
-}
-
+/*
+* if (q[0] < T(-szPtr[0])){
+*	residuals[0] = oW * (q[0] + T(szPtr[0]));
+* }else if (q[0] < T(szPtr[0])){
+*	residuals[0] = T(0.0);
+* }else{
+*	residuals[0] = oW * (q[0] - T(szPtr[0]));
+*/
+ 
 template <class T>
 void set_camera_extrinsics( T *p, const T *camera_extrinsic, bool pcorrect = true )
 {
-    vector_plusequal( p, camera_extrinsic );
+    p[0] += T( camera_extrinsic[0] );
+    p[1] += T( camera_extrinsic[1] );
+    p[2] += T( camera_extrinsic[2] );
 
-    if( pcorrect ) set_projection_precision( p );
+    if( pcorrect )
+    {
+        if( ( T(0.0) <= p[2] ) && ( p[2] < EPS ) ) p[2] = EPS;
+        else if( p[2] > -EPS ) p[2] = -EPS;
+    }
 
     return;
-}
-
-template <class T>
-void project_point( T *p, T fx, T fy, T px, T py )
-{
-    p[0] = fx * p[0] / p[2] + px;
-    p[1] = fy * p[1] / p[2] + py;
 }
  
 struct AlignmentErrorTriangulate 
@@ -77,16 +112,18 @@ struct AlignmentErrorTriangulate
 		// camera_extrinsic[0,1,2] are the angle-axis rotation.
 		T *p = new T[3]();
 
-		ceres::AngleAxisRotatePoint((T*)(camera_extrinsic), point, p);
+		ceres::AngleAxisRotatePoint( (T*)( camera_extrinsic ), point, p);
 
 		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, (T *)( camera_extrinsic ) + 3 );
+        set_camera_extrinsics( p, (T *)( camera_extrinsic )+3 );
 
 		// project it
-        project_point( p, (T) fx, (T) fy, (T) px, (T) py );
+		p[0] = T(fx) * p[0] / p[2] + T(px);
+		p[1] = T(fy) * p[1] / p[2] + T(py);
 
 		// reprojection error
-        vector_subtract( residuals, p, (T *) observed, 2 );
+		residuals[0] = (p[0] - T(observed[0]));
+		residuals[1] = (p[1] - T(observed[1]));     
 
 		return true;
 	}
@@ -111,13 +148,15 @@ struct AlignmentError2D
 		ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
 
 		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, camera_extrinsic + 3 );
+        set_camera_extrinsics( p, camera_extrinsic+3 );
 
 		// project it
-        project_point( p, (T) fx, (T) fy, (T) px, (T) py );
+		p[0] = T(fx) * p[0] / p[2] + T(px);
+		p[1] = T(fy) * p[1] / p[2] + T(py);
 
 		// reprojection error
-        vector_scalar_mult_subtract( residuals, p, observed, (T) observed[5], 2 );
+		residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
+		residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
 
 		return true;
 	}
@@ -132,23 +171,25 @@ struct AlignmentError3D
 	AlignmentError3D(double* observed_in): observed(observed_in) {}
 
 	template <typename T>
-	bool operator()(const T* const camera_extrinsic,
-			const T* const point,
-			T* residuals) const {
+		bool operator()(const T* const camera_extrinsic,
+				const T* const point,
+				T* residuals) const {
 
-		// camera_extrinsic[0,1,2] are the angle-axis rotation.
-		T *p = new T[3]();
+			// camera_extrinsic[0,1,2] are the angle-axis rotation.
+			T *p = new T[3]();
 
-		ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
+			ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
 
-		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, camera_extrinsic + 3, false );
+			// camera_extrinsic[3,4,5] are the translation.
+            set_camera_extrinsics( p, camera_extrinsic+3, false );
 
-		// The error is the difference between the predicted and observed position.
-        vector_scalar_mult_subtract( residuals, p, observed + 2, (T) observed[5] );
+			// The error is the difference between the predicted and observed position.
+			residuals[0] = T( observed[5] )*( p[0] - T( observed[2]) );
+			residuals[1] = T( observed[5] )*( p[1] - T( observed[3]) );
+			residuals[2] = T( observed[5] )*( p[2] - T( observed[4]) );
 
-		return true;
-	}
+			return true;
+		}
 	double* observed;
 };
 
@@ -162,33 +203,33 @@ struct AlignmentErrorBox
 			T* residuals) const {
 
 		T *p = new T[3]();
-		T *q = new T[3]();  
-		T *o = new T[3]();  
-		T *r = new T[3]();
+		T q[3];  
+		T o[3];  
+		T r[3];
 
-        // vector_set_equal( p, vector_subtract( (T *) observed + 2, camera_extrinsic + 3 ) );
-        vector_subtract( p, (T *) observed + 2, camera_extrinsic + 3 );
+		p[0] = T( observed[2] ) - camera_extrinsic[3];
+		p[1] = T( observed[3] ) - camera_extrinsic[4];
+		p[2] = T( observed[4] ) - camera_extrinsic[5];
 
-        vector_minusequal( r, camera_extrinsic );
-        /*
 		r[0] = -camera_extrinsic[0];
 		r[1] = -camera_extrinsic[1];
 		r[2] = -camera_extrinsic[2];
-        */
 
 		ceres::AngleAxisRotatePoint(r, p, o);
 
 		ceres::AngleAxisRotatePoint(world2object, o, q);
 
-        vector_plusequal( q, world2object + 3 );
+		q[0] += world2object[3];
+		q[1] += world2object[4];
+		q[2] += world2object[5];
 
 		// hinge loss
-		double* szPtr = object_half_size + 3 * int(observed[5]);
-		T oW = T(object_weight[int(observed[5])]);
+		double* sz_ptr = object_half_size + 3 * int(observed[5]);
+		T obj_wt = T(object_weight[int(observed[5])]);
 
-        set_residual_hinge_loss( q[0], T( szPtr[0] ), oW, residuals[0] );
-        set_residual_hinge_loss( q[1], T( szPtr[1] ), oW, residuals[1] );
-        set_residual_hinge_loss( q[2], T( szPtr[2] ), oW, residuals[2] );
+        set_residual_hinge_loss( q[0], T( sz_ptr[0] ), obj_wt, residuals[0] );
+        set_residual_hinge_loss( q[1], T( sz_ptr[1] ), obj_wt, residuals[1] );
+        set_residual_hinge_loss( q[2], T( sz_ptr[2] ), obj_wt, residuals[2] );
 
 		return true;
 	}
@@ -201,22 +242,29 @@ struct AlignmentErrorAxisManhattanBox
 	template <typename T>
 	bool operator()(const T* const camera_extrinsic,const T* const world2object,T* residuals) const {
 		T *p = new T[3]();
-		T *q = new T[3]();  
-		T *o = new T[3]();  
-		T *r = new T[3]();
+		T q[3];  
+		T o[3];  
+		T r[3];
 
-        vector_subtract( p, (T *) observed + 2, camera_extrinsic + 3 );
-        vector_minusequal( r, camera_extrinsic );
+		p[0] = T( observed[2] ) - camera_extrinsic[3];
+		p[1] = T( observed[3] ) - camera_extrinsic[4];
+		p[2] = T( observed[4] ) - camera_extrinsic[5];
 
+		r[0] = -camera_extrinsic[0];
+		r[1] = -camera_extrinsic[1];
+		r[2] = -camera_extrinsic[2];
 		ceres::AngleAxisRotatePoint(r, p, o);
 
-        vector_add( q, o, world2object );
+		q[0] = o[0] + world2object[0];
+		q[1] = o[1] + world2object[1];
+		q[2] = o[2] + world2object[2];
 
-		double* szPtr = object_half_size + 3 * int(observed[5]);
-		T oW = T(object_weight[int(observed[5])]);
-        set_residual_hinge_loss( q[0], T( szPtr[0] ), oW, residuals[0] );
-        set_residual_hinge_loss( q[1], T( szPtr[1] ), oW, residuals[1] );
-        set_residual_hinge_loss( q[2], T( szPtr[2] ), oW, residuals[2] );
+		double* sz_ptr = object_half_size + 3 * int(observed[5]);
+		T obj_wt = T(object_weight[int(observed[5])]);
+
+        set_residual_hinge_loss( q[0], T( sz_ptr[0] ), obj_wt, residuals[0] );
+        set_residual_hinge_loss( q[1], T( sz_ptr[1] ), obj_wt, residuals[1] );
+        set_residual_hinge_loss( q[2], T( sz_ptr[2] ), obj_wt, residuals[2] );
 
 		return true;
 	}
@@ -234,29 +282,37 @@ struct AlignmentErrorAxisBox
 			T* residuals) const {
 
 		T *p = new T[3]();
-		T *q = new T[3]();  
-		T *o = new T[3]();  
-		T *r = new T[3]();
+		T q[3];  
+		T o[3];  
+		T r[3];
 
-        vector_subtract( p, (T *) observed + 2, camera_extrinsic + 3 );
-        vector_minusequal( r, camera_extrinsic );
+		p[0] = T( observed[2] ) - camera_extrinsic[3];
+		p[1] = T( observed[3] ) - camera_extrinsic[4];
+		p[2] = T( observed[4] ) - camera_extrinsic[5];
+
+		r[0] = - camera_extrinsic[0];
+		r[1] = - camera_extrinsic[1];
+		r[2] = - camera_extrinsic[2];
 
 		ceres::AngleAxisRotatePoint(r, p, o);
 
-		T cosTheta = cos(world2object[0]);
-		T sinTheta = sin(world2object[0]);
 
-		q[0] = cosTheta * o[0] - sinTheta * o[2] + world2object[1];
-		q[1] = o[1]                              + world2object[2];
-		q[2] = sinTheta * o[0] + cosTheta * o[2] + world2object[3];
+		T cos_theta = cos( world2object[0] );
+		T sin_theta = sin( world2object[0] );
+
+
+		q[0] = cos_theta * o[0] - sin_theta * o[2] + world2object[1];
+		q[1] = o[1]                                + world2object[2];
+		q[2] = sin_theta * o[0] + cos_theta * o[2] + world2object[3];
+
 
 		// hinge loss
-		double* szPtr = object_half_size + 3 * int(observed[5]);
-		T oW = T(object_weight[int(observed[5])]);
-		//std::cout<<"oW="<<oW<<std::endl;
-        set_residual_hinge_loss( q[0], T( szPtr[0] ), oW, residuals[0] );
-        set_residual_hinge_loss( q[1], T( szPtr[1] ), oW, residuals[1] );
-        set_residual_hinge_loss( q[2], T( szPtr[2] ), oW, residuals[2] );
+		double* sz_ptr = object_half_size + 3 * int(observed[5]);
+		T obj_wt = T(object_weight[int(observed[5])]);
+
+        set_residual_hinge_loss( q[0], T( sz_ptr[0] ), obj_wt, residuals[0] );
+        set_residual_hinge_loss( q[1], T( sz_ptr[1] ), obj_wt, residuals[1] );
+        set_residual_hinge_loss( q[2], T( sz_ptr[2] ), obj_wt, residuals[2] );
 
 		return true;
 	}
@@ -272,20 +328,27 @@ struct AlignmentErrorFloor
 			T* residuals) const {
 
 		T *p = new T[3]();
-		T *q = new T[3]();   
-		T *r = new T[3]();
+		T q[3];   
+		T r[3];
 
-        vector_subtract( p, (T *) observed + 2, camera_extrinsic + 3 );
-        vector_minusequal( r, camera_extrinsic );
+		p[0] = T(observed[2]) - camera_extrinsic[3];
+		p[1] = T(observed[3]) - camera_extrinsic[4];
+		p[2] = T(observed[4]) - camera_extrinsic[5];
+
+		r[0] = - camera_extrinsic[0];
+		r[1] = - camera_extrinsic[1];
+		r[2] = - camera_extrinsic[2];
 
 		ceres::AngleAxisRotatePoint(r, p, q);
 
+
 		// hinge loss
-		double* szPtr = object_half_size + 3 * int(observed[5]);
-		T oW = T(object_weight[int(observed[5])]);
-        set_residual_hinge_loss( q[0], T( szPtr[0] ), oW, residuals[0] );
-        set_residual_hinge_loss( q[1], T( szPtr[1] ), oW, residuals[1] );
-        set_residual_hinge_loss( q[2], T( szPtr[2] ), oW, residuals[2] );
+		double* sz_ptr = object_half_size + 3 * int(observed[5]);
+		T obj_wt = T(object_weight[int(observed[5])]);
+
+        set_residual_hinge_loss( q[0], T( sz_ptr[0] ), obj_wt, residuals[0] );
+        set_residual_hinge_loss( q[1], T( sz_ptr[1] ), obj_wt, residuals[1] );
+        set_residual_hinge_loss( q[2], T( sz_ptr[2] ), obj_wt, residuals[2] );
 
 		return true;
 	}
@@ -304,32 +367,28 @@ struct AlignmentErrorCeiling
 		T q[3];   
 		T r[3];
 
-        vector_subtract( p, (T *) observed + 2, camera_extrinsic + 3 );
-        vector_minusequal( r, camera_extrinsic );
+		p[0] = T(observed[2]) - camera_extrinsic[3];
+		p[1] = T(observed[3]) - camera_extrinsic[4];
+		p[2] = T(observed[4]) - camera_extrinsic[5];
+
+		r[0] = - camera_extrinsic[0];
+		r[1] = - camera_extrinsic[1];
+		r[2] = - camera_extrinsic[2];
 
 		ceres::AngleAxisRotatePoint(r, p, q);
 
 		// hinge loss
-		double* szPtr = object_half_size + 3 * int(observed[5]);
-		T oW = T(object_weight[int(observed[5])]);
+		double* sz_ptr = object_half_size + 3 * int(observed[5]);
+		T obj_wt = T(object_weight[int(observed[5])]);
 
-        set_residual_hinge_loss( q[0], T( szPtr[0] ), oW, residuals[0] );
-
-		if (q[1] - world2object[0] < T(-szPtr[2]))
-			residuals[1] = oW * (q[1] - world2object[0] + T(szPtr[2]));
-		else if (q[1] - world2object[0] < T(szPtr[2]))
-			residuals[1] = T(0.0);
-		else
-			residuals[1] = oW * (q[1] - world2object[0] - T(szPtr[2]));
-		
-
-        set_residual_hinge_loss( q[2], T( szPtr[1] ), oW, residuals[2] );
+        set_residual_hinge_loss( q[0], T( sz_ptr[0] ), obj_wt, residuals[0] );
+        set_residual_hinge_loss( q[1], T( sz_ptr[1] ), obj_wt, residuals[1] );
+        set_residual_hinge_loss( q[2], T( sz_ptr[2] ), obj_wt, residuals[2] );
 
 		return true;
 	}
 	double* observed;
 };
-
 
 struct AlignmentError2D3D 
 {
@@ -338,8 +397,7 @@ struct AlignmentError2D3D
 	template <typename T>
 	bool operator()(const T* const camera_extrinsic,
 			const T* const point,
-			T* residuals) const 
-    {
+			T* residuals) const {
 
 		// camera_extrinsic[0,1,2] are the angle-axis rotation.
 		T *p = new T[3]();
@@ -347,21 +405,19 @@ struct AlignmentError2D3D
 		ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
 
 		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, camera_extrinsic + 3, false );
+        set_camera_extrinsics( p, camera_extrinsic+3 );
 
 		// The error is the difference between the predicted and observed position.
-        // vector_scalar_mult_subtract( residuals + 2, p, observed + 2, ( (T) observed[5] ) * w3Dv2D );
-        vector_scalar_mult_subtract( residuals + 2, p, observed + 2, (T) observed[5] * w3Dv2D );
-
-        set_projection_precision( p );
+		residuals[2] = T( observed[5] ) * ( p[0] - T( observed[2] ) ) * w3Dv2D;
+		residuals[3] = T( observed[5] ) * ( p[1] - T( observed[3] ) ) * w3Dv2D;
+		residuals[4] = T( observed[5] ) * ( p[2] - T( observed[4] ) ) * w3Dv2D;
 
 		// project it
-        project_point( p, (T) fx, (T) fy, (T) px, (T) py );
+		p[0] = T(fx) * p[0] / p[2] + T(px);
+		p[1] = T(fy) * p[1] / p[2] + T(py);
 
-		// reprojection error
-        vector_scalar_mult_subtract( residuals, p, observed, (T) observed[5], 2 );
-		// residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
-		// residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
+		residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
+		residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
 
 		return true;
 	}
@@ -383,21 +439,21 @@ struct AlignmentError2D3D1
 		ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
 
 		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, camera_extrinsic + 3, false ) ;
+        set_camera_extrinsics( p, camera_extrinsic+3 );
 
 		// The error is the difference between the predicted and observed position.
-        vector_scalar_mult_subtract( residuals + 2, p, observed + 2, (T) observed[5] * w3Dv2D );
+		residuals[2] = T( observed[5] ) * ( p[0] - T( observed[2] ) ) * w3Dv2D;
+		residuals[3] = T( observed[5] ) * ( p[1] - T( observed[3] ) ) * w3Dv2D;
+		residuals[4] = T( observed[5] ) * ( p[2] - T( observed[4] ) ) * w3Dv2D;
 
 		// project it
 		float n[4]= {0,1,0,0};
 		T temp = (camera_extrinsic[3]* T(n[0]))+(camera_extrinsic[4] * T(n[1]))+(camera_extrinsic[5] * T(n[2]));
 
-        project_point( p, (T) fx, (T) fy, (T) px, (T) py );
+		p[0] = T(fx) * p[0] / p[2] + T(px);
+		p[1] = T(fy) * p[1] / p[2] + T(py);
 
-		//residuals[3]= T(0);
 		residuals[5] = T(observed[5])*(temp-T(n[3]))*w3Dv2D;
-
-		// reprojection error
 		residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
 		residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
 
@@ -422,16 +478,18 @@ struct AlignmentError2D3D2
 		ceres::AngleAxisRotatePoint(camera_extrinsic, point, p);
 
 		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, camera_extrinsic + 3 );
+        set_camera_extrinsics( p, camera_extrinsic+3 );
 
 		// The error is the difference between the predicted and observed position.
-        vector_scalar_mult_subtract( residuals + 2, p, observed + 2, (T) observed[5] * w3Dv2D );
-
-        set_projection_precision( p );
+		residuals[2] = T( observed[5] )*( p[0] - T( observed[2] ) ) * w3Dv2D;
+		residuals[3] = T( observed[5] )*( p[1] - T( observed[3] ) ) * w3Dv2D;
+		residuals[4] = T( observed[5] )*( p[2] - T( observed[4] ) ) * w3Dv2D;
 
 		// project it
-        project_point( p, (T) fx, (T) fy, (T) px, (T) py );
+		p[0] = T(fx) * p[0] / p[2] + T(px);
+		p[1] = T(fy) * p[1] / p[2] + T(py);
 
+		// reprojection error
 		residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
 		residuals[1] = T(observed[5])*(p[1] - T(observed[1]));     
 
@@ -457,23 +515,22 @@ struct AlignmentErrortran
 		// reprojection error
 		T temp[3],temp1[3];
 
-		temp[0] = -(camera_extrinsic[5]*camera_extrinsic2[4]) + (camera_extrinsic[4]*camera_extrinsic2[5]);
-		temp[1] = (camera_extrinsic[5]*camera_extrinsic2[3]) - (camera_extrinsic[3]*camera_extrinsic2[5]);
-		temp[2] = -(camera_extrinsic[4]*camera_extrinsic2[3])+(camera_extrinsic[3]*camera_extrinsic2[4]);
+		temp[0] = -( camera_extrinsic[5] * camera_extrinsic2[4] ) + ( camera_extrinsic[4] * camera_extrinsic2[5] );
+		temp[1] =  ( camera_extrinsic[5] * camera_extrinsic2[3] ) - ( camera_extrinsic[3] * camera_extrinsic2[5] );
+		temp[2] = -( camera_extrinsic[4] * camera_extrinsic2[3] ) + ( camera_extrinsic[3] * camera_extrinsic2[4] );
 
-		temp1[0] = -(camera_extrinsic1[5]*camera_extrinsic2[4]) + (camera_extrinsic1[4]*camera_extrinsic2[5]);
-		temp1[1] = (camera_extrinsic1[5]*camera_extrinsic2[3]) - (camera_extrinsic1[3]*camera_extrinsic2[5]);
-		temp1[2] = -(camera_extrinsic1[4]*camera_extrinsic2[3])+(camera_extrinsic1[3]*camera_extrinsic2[4]);
+		temp1[0] = -( camera_extrinsic1[5] * camera_extrinsic2[4] ) + ( camera_extrinsic1[4] * camera_extrinsic2[5] );
+		temp1[1] =  ( camera_extrinsic1[5] * camera_extrinsic2[3] ) - ( camera_extrinsic1[3] * camera_extrinsic2[5] );
+		temp1[2] = -( camera_extrinsic1[4] * camera_extrinsic2[3] ) + ( camera_extrinsic1[3] * camera_extrinsic2[4] );
 
-		residuals[0] = T(observed[5])*(temp[0] - temp1[0]);
-		residuals[1] = T(observed[5])*(temp[1] - temp1[1]);
-		residuals[2] = T(observed[5])*(temp[2] - temp1[2]);
+		residuals[0] = T( observed[5] ) * ( temp[0] - temp1[0] );
+		residuals[1] = T( observed[5] ) * ( temp[1] - temp1[1] );
+		residuals[2] = T( observed[5] ) * ( temp[2] - temp1[2] );
 
 		return true;
 	}
 	double* observed;
 };
-
 
 struct AlignmentErrorbox_new 
 {
@@ -495,11 +552,13 @@ struct AlignmentErrorbox_new
 		ceres::AngleAxisRotatePoint(camera_extrinsic, point2, p1);
 
 		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, camera_extrinsic + 3, false );
-        set_camera_extrinsics( p1, camera_extrinsic + 3, false );
+        set_camera_extrinsics( p, camera_extrinsic+3, false );
+        set_camera_extrinsics( p1, camera_extrinsic+3, false );
 
-        vector_subtract( residuals, p, p1 );
-        vector_minusequal_scalar( residuals, *c );
+		//// The error is the difference between the predicted and observed position.
+		residuals[0] = ( p[0] - p1[0] - c[0] );
+		residuals[1] = ( p[1] - p1[1] - c[0] );
+		residuals[2] = ( p[2] - p1[2] - c[0] );
 
 		return true;
 	}
@@ -528,17 +587,19 @@ struct AlignmentErrorbox_new1
 		ceres::AngleAxisRotatePoint(camera_extrinsic, point2, p1);
 
 		// camera_extrinsic[3,4,5] are the translation.
-        set_camera_extrinsics( p, camera_extrinsic + 3, false );
-        set_camera_extrinsics( p1, camera_extrinsic + 3, false );
+        set_camera_extrinsics( p, camera_extrinsic+3, false );
+        set_camera_extrinsics( p1, camera_extrinsic+3, false );
 
-        vector_subtract( residuals, p, p1 );
-        vector_minusequal( residuals, c );
+		residuals[0] = ( p[0] - p1[0] - c[0] );
+		residuals[1] = ( p[1] - p1[1] - c[1] );
+		residuals[2] = ( p[2] - p1[2] - c[2] );
 
 		return true;
 	}
 	double* observed;
 
 };
+ 
 
 void ceres_fill_camera_parameters( double *camera_matrix, double *camera_parameter, int n_cameras );
 
@@ -561,7 +622,7 @@ void ceres_add_alignment_traj_normal_error_function( double *obs_ptr, double *ca
 void ceres_add_alignment_traj_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
 											  double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame );
 
-unsigned int ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_cloud,
+void ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_cloud,
 														 double *cam_ptr_one, double *cam_ptr_two, unsigned int *point_observed_index, 
 														 ceres::LossFunction *loss_function, ceres::Problem &problem, 
 														 unsigned int *random_array, double *box_constraints_var, int n_points, int n_camera, 
@@ -574,6 +635,6 @@ void ceres_add_box_constraints_vector( double *obs_ptr, double *camera_ptr, doub
 void ceres_add_box_constraints_partial( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem );
 
 void ceres_add_box_constraints_all( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem );
-
-void generate_random_number_array( unsigned int *random_array, int n_rand_points, int max_pts = 100 );
 #endif /* ifndef CERES_FUNCTIONS_H */
+
+

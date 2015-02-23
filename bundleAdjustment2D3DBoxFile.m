@@ -1,8 +1,9 @@
-function [cameraRtC2W,pointCloud] = bundleAdjustment2D3DBoxFile(cameraRtC2W,pointCloud,pointObserved, pointObservedValue, K, weight, mode,num_of_rand_points)
+function [cameraRtC2W, pointCloud, boxConstVar, optm] = bundleAdjustment2D3DBoxFile(cameraRtC2W,pointCloud,pointObserved, pointObservedValue, K, weight, mode, rand_pts)
 
 
 [camID,ptsID,valID] = find(pointObserved);
 
+num_of_rand_points = size( rand_pts, 1 );
 
 nCam=uint32(size(cameraRtC2W,3));
 nPts=uint32(size(pointCloud,2));
@@ -56,12 +57,16 @@ fwrite(fin, ptsObservedIndex, 'uint32');
 fwrite(fin, ptsObservedValue, 'double');
 fwrite(fin, objectHalfSize, 'double'); %<= Object
 fwrite(fin, objectWeights, 'double'); %<= Object
+fwrite(fin, rand_pts(:,1), 'uint32');
+fwrite(fin, rand_pts(:,2), 'uint32');
 
 fclose(fin);
 
 cmd = sprintf('./ba2D3DboxType1 %d %f %s %s', mode, weight, fname_in, fname_out);
 fprintf('%s\n',cmd);
+tic;
 system(cmd);
+optm = toc;
 
 % read the result back;
 fout = fopen(fname_out, 'rb');
@@ -71,6 +76,7 @@ nObjects=fread(fout,1,'uint32');
 cameraRtW2C = fread(fout,12*nCam,'double');
 pointCloud = fread(fout,3*nPts,'double');
 objectRtW2O = fread(fout,12*nObjects,'double');
+boxConstVar = fread(fout,3*num_of_rand_points, 'double');
 fclose(fout);
 
 cameraRtW2C = reshape(cameraRtW2C,3,4,[]);

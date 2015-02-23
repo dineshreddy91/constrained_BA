@@ -1,4 +1,3 @@
-
 #include <cmath>
 #include <cstdio>
 #include <iostream>
@@ -7,6 +6,25 @@
 #include "ceres_functions.h"
 
 using namespace std;
+
+void generate_random_number_array( unsigned int *random_array, int n_rand_points, int max_pts )
+{
+	srand( (unsigned) time(0) ); 
+	for( int idx = 0; idx < n_rand_points ; idx++ )
+		random_array[ idx ]	=	( rand() % max_pts ) + 1;
+ 
+	return;
+}
+
+bool check_repetition( unsigned int *added_pairs, int n_rand_pairs, int id_obs_one, int id_obs_two )
+{
+    for( int i = 0; i < n_rand_pairs; i++ )
+        if( (added_pairs[2*i] == id_obs_one) && (added_pairs[2*i+1] == id_obs_two) ) return true;
+        else if( (added_pairs[2*i] == id_obs_two) && (added_pairs[2*i+1] == id_obs_one ) ) return true;
+
+    return false;
+}
+
 
 void ceres_fill_camera_parameters( double *camera_matrix, double *camera_parameter, int n_cameras )
 {
@@ -139,30 +157,41 @@ void ceres_add_alignment_traj_error_function( double *obs_ptr, double *camera_pt
 	return;
 }
 
-void ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_cloud,
+unsigned int ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_cloud,
 														 double *cam_ptr_one, double *cam_ptr_two, unsigned int *point_observed_index, 
 														 ceres::LossFunction *loss_function, ceres::Problem &problem, 
 														 unsigned int *random_array, double *box_constraints_var, int n_points, int n_cameras, 
 														 int n_rand_pairs, int id_obs, int mode, int not_first_frame )
 {
 	double *point_ptr_two;
+    unsigned int num_selected_pts       =   0;
+    unsigned int *second_random_array   =   new unsigned int [ n_rand_pairs ];
+    unsigned int *added_pairs           =   new unsigned int [ 2*n_rand_pairs ];
 
 	ceres::CostFunction *cost_function		=	new ceres::AutoDiffCostFunction< AlignmentError2D3D, 5, 6, 3 > ( new AlignmentError2D3D( obs_ptr ) );
 	problem.AddResidualBlock( cost_function, loss_function, camera_ptr, point_ptr_one );
 
+	// generate_random_number_array( random_array, n_rand_pairs, n_points );
+	// generate_random_number_array( second_random_array, n_rand_pairs, n_points );
 	if( not_first_frame )
 	{
 		int cntr = 0;
+
 		for( unsigned int views = 0; views < n_cameras-1; views++ )
 		{
+            // if( views % 2 ) generate_random_number_array( second_random_array, n_rand_pairs, n_points );
+            // else generate_random_number_array( random_array, n_rand_pairs, n_points );
 			for( int first = 0; first < n_rand_pairs; first++ )
 			{
-				int id_obs_one = n_points / n_cameras * views + random_array[ first ];
-				if( id_obs_one == id_obs )
+				int id_obs_one = random_array[ first ];
+				//if( id_obs_one == id_obs )
 				{
-					for( int second = 0; second < n_rand_pairs; second++ )
+					// for( int second = first+1; second < n_rand_pairs; second++ )
 					{
-						int id_obs_two	=	n_points / n_cameras * views + random_array[ second ];
+						int id_obs_two	=	random_array[ first+n_rand_pairs ];
+                        if( id_obs_one == id_obs_two ) continue;
+                        if( check_repetition( added_pairs, n_rand_pairs, id_obs_one, id_obs_two ) ) continue ;
+
 						point_ptr_two	=	point_cloud + point_observed_index[ 2*id_obs_two+1 ] * 3;
 						if( point_ptr_one != point_ptr_two )
 						{ 
@@ -176,13 +205,20 @@ void ceres_add_alignment_traj_normal_box_error_function( double *obs_ptr, double
 								ceres_add_box_constraints_scalar( obs_ptr, camera_ptr, point_ptr_one, point_ptr_two, box_constraints_var, loss_function, problem );
 
 							if( mode < 9 ) cntr++;
+                            added_pairs[ 2*num_selected_pts ]       =   id_obs_one;
+                            added_pairs[ 2*num_selected_pts + 1 ]   =   id_obs_two;
+                            num_selected_pts++;
+                            if( num_selected_pts == n_rand_pairs ) break;
 						}
 					}
 				}
+                if( num_selected_pts == n_rand_pairs ) break;
 			}
 		}
 	}
-	return;
+    delete[]    added_pairs;
+    delete[]    second_random_array;
+	return      num_selected_pts;
 }
 
 void ceres_add_box_constraints_vector( double *obs_ptr, double *camera_ptr, double *point_ptr_one, double *point_ptr_two, double* box_constraints_var, ceres::LossFunction *loss_function, ceres::Problem &problem )

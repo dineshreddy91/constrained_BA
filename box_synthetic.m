@@ -143,10 +143,15 @@ save('synthetic_data.mat', 'K', 'cameraRtC2W', 'point_cloud', ...
 num_constraints				=	length( constraints );
 
 for c_iter = 1:num_constraints
+
+    num_of_rand_points		=	constraints( c_iter );
+    rp                      =   randperm( num_pts/2*(num_pts-1),num_of_rand_points);
+    cam1                    =   floor(sqrt(8*(rp-1) + 1)/2 + 1/2);
+    cam2                    =   rp - cam1.*(cam1-1)/2;
+
 	for m_iter = 1:length(mode)
 
 		load( 'synthetic_data.mat' ); 															% Make sure all 3D parameters are reset every iteration.
-		num_of_rand_points		=	constraints( c_iter );
 		
 		% These labels don't mean much for the current experimentation.
 		global objectLabel;
@@ -156,18 +161,17 @@ for c_iter = 1:num_constraints
 		objectLabel.optimizationWeight	=	zeros(1,objectLabel.length);
 		
 		% Plot 3D points before doing bundle adjustment.
-		figure(1); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
-							 point_cloud(3, 1:num_pts) ); 
-							 title( 'Before Adjustment' );
+%		figure(1); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
+%							 point_cloud(3, 1:num_pts) ); title( 'Before Adjustment' );
 		axis( [-5 5 -6 6 0 30] );
 		
-		[ cameraRtC2W1, point_cloud ]	=	bundleAdjustment2D3DBoxFile( ...
-												cameraRtC2W, point_cloud, point_obs_index, ...
-												point_obs_value, K, w3D, mode(m_iter), num_of_rand_points);
+		[ cameraRtC2W1, point_cloud, bV, optm ]   =     bundleAdjustment2D3DBoxFile( ...
+												        cameraRtC2W, point_cloud, point_obs_index, ...
+												        point_obs_value, K, w3D, mode(m_iter), [cam1(:) cam2(:)]);
 		
 		% Plot 3D points after doing bundle adjustment.
-		figure(2); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
-							 point_cloud(3, 1:num_pts) ); title( 'After Adjustment' );
+%		figure(2); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
+%							 point_cloud(3, 1:num_pts) ); title( 'After Adjustment' );
 		axis( [-5 5 -6 6 0 30] );
 		
 		first							=	point3d_actual(:, :, 1)';
@@ -177,10 +181,11 @@ for c_iter = 1:num_constraints
 			err_reproj					=	err_reproj + ...
 												sumsqr( first(:, err) - second(:, err) );
 		end
-		error_curr						=	[ mode(m_iter) sigma num_of_rand_points err_reproj ];
+		error_curr						=	[ mode(m_iter) sigma num_of_rand_points optm err_reproj];
 		error_all( c_iter, : )			=	err_reproj;
 		
 		% Finally append the error for the current iteration to a file
 		dlmwrite( save_filename, error_curr, '-append');
+        dlmwrite( 'recon_box_params.txt', bV(:)', '-append');
 	end
 end
