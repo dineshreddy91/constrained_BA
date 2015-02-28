@@ -1,0 +1,4 @@
+/home/tox/git/constrained_BA/CMakeFiles/ba2D3D.dir
+/home/tox/git/constrained_BA/CMakeFiles/ba2D3Dbox.dir
+/home/tox/git/constrained_BA/CMakeFiles/ba2D3DboxType1.dir
+/home/tox/git/constrained_BA/CMakeFiles/test.dir

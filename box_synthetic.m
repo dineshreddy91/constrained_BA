@@ -16,17 +16,18 @@ if nargin < 4
 	save_filename	=	'recon_error.log';
 end
 
-noise_std	=	[1 2 3 4 5];																% Gaussian noise std in points.
+noise_std   =	[1 2 3 4 5];																% Gaussian noise std in points.
 dim_num		=	3;																			% Dimension
 num_pts		=	1000;																		% number of points
-seed        = 123456789;
+seed        =   123456789;
 pts_scale	=	2.5;																		% Scale points with this factor after generation.
 pts_on_cube	=	pts_scale * uniform_on_cube( dim_num, num_pts, seed );						% Generated random points on a cube.
+n_pts_on_plane= 1000;
 sigma		=	noise_std( noise_num );
 K			=	[718.856 0 607.1928; 0 718.856 185.2157; 0 0 1];							% Camera intrinsic parameters.
 w3D 		=	10;																			% Some threshold passed to ceres.
 
-debug_flag	=	0;
+debug_flag	=	1;
 debug_impts	=	0;
 num_views	=	15;																			% Number of camera views.
 
@@ -43,39 +44,67 @@ num_views	=	15;																			% Number of camera views.
 % for num=1:size(t,2)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% IGNORE THIS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+pts_on_plane(1,:)=10*randn(1,num_pts);
+pts_on_plane(3,:)=4*randn(1,num_pts);
+pts_on_plane(2,:)=0;
+
 % Random intilization of the trajectories  without rotations 
-projection_matrices(:,:,1)	=	[1 0 0 0.5;0 1 0 0.2; 0 0 1 20  ;0 0 0 1];					% z=0
-projection_matrices(:,:,2)	=	[1 0 0 1  ;0 1 0 0.4; 0 0 1 19.5;0 0 0 1];					% z=1
-projection_matrices(:,:,3)	=	[1 0 0 1.5;0 1 0 0.6; 0 0 1 19  ;0 0 0 1];					% z=2
-projection_matrices(:,:,4)	=	[1 0 0 2  ;0 1 0 0.8; 0 0 1 18.5;0 0 0 1];					% z=3
+% projection_matrices(:,:,1)	=	[1 0 0 0.5;0 1 0 0.2; 0 0 1 20  ;0 0 0 1];					% z=0
+% projection_matrices(:,:,2)	=	[1 0 0 1  ;0 1 0 0.4; 0 0 1 19.5;0 0 0 1];					% z=1
+% projection_matrices(:,:,3)	=	[1 0 0 1.5;0 1 0 0.6; 0 0 1 19  ;0 0 0 1];					% z=2
+% projection_matrices(:,:,4)	=	[1 0 0 2  ;0 1 0 0.8; 0 0 1 18.5;0 0 0 1];					% z=3
+% projection_matrices(:,:,5)	=	[1 0 0 2.5;0 1 0 1  ; 0 0 1 18  ;0 0 0 1];					% z=4
+% projection_matrices(:,:,6)	=	[1 0 0 3  ;0 1 0 1.2; 0 0 1 17.5;0 0 0 1];					% z=5
+% projection_matrices(:,:,7)	=	[1 0 0 3.5;0 1 0 1.4; 0 0 1 17  ;0 0 0 1];					% z=6
+% projection_matrices(:,:,8)	=	[1 0 0 4  ;0 1 0 1.6; 0 0 1 16.5;0 0 0 1];					% z=7
+% projection_matrices(:,:,9)	=	[1 0 0 4.5;0 1 0 1.8; 0 0 1 16  ;0 0 0 1];					% z=8
+% projection_matrices(:,:,10)	=	[1 0 0 5  ;0 1 0 2  ; 0 0 1 15.5;0 0 0 1];					% z=9
+% projection_matrices(:,:,11)	=	[1 0 0 5.5;0 1 0 2.2; 0 0 1 15  ;0 0 0 1];					% z=10
+% projection_matrices(:,:,12)	=	[1 0 0 6  ;0 1 0 2.4; 0 0 1 14.5;0 0 0 1];					% z=11
+% projection_matrices(:,:,13)	=	[1 0 0 6.5;0 1 0 2.6; 0 0 1 14  ;0 0 0 1];					% z=12
+% projection_matrices(:,:,14)	=	[1 0 0 7  ;0 1 0 2.8; 0 0 1 13.5;0 0 0 1];					% z=13
+% projection_matrices(:,:,15)	=	[1 0 0 7.5;0 1 0 3  ; 0 0 1 13  ;0 0 0 1];					% z=14
+
+projection_matrices(:,:,1)	=	[1 0 0 0.5;0 1 0 1; 0 0 1 20  ;0 0 0 1];					% z=0
+projection_matrices(:,:,2)	=	[1 0 0 1  ;0 1 0 1; 0 0 1 19.5;0 0 0 1];					% z=1
+projection_matrices(:,:,3)	=	[1 0 0 1.5;0 1 0 1; 0 0 1 19  ;0 0 0 1];					% z=2
+projection_matrices(:,:,4)	=	[1 0 0 2  ;0 1 0 1; 0 0 1 18.5;0 0 0 1];					% z=3
 projection_matrices(:,:,5)	=	[1 0 0 2.5;0 1 0 1  ; 0 0 1 18  ;0 0 0 1];					% z=4
-projection_matrices(:,:,6)	=	[1 0 0 3  ;0 1 0 1.2; 0 0 1 17.5;0 0 0 1];					% z=5
-projection_matrices(:,:,7)	=	[1 0 0 3.5;0 1 0 1.4; 0 0 1 17  ;0 0 0 1];					% z=6
-projection_matrices(:,:,8)	=	[1 0 0 4  ;0 1 0 1.6; 0 0 1 16.5;0 0 0 1];					% z=7
-projection_matrices(:,:,9)	=	[1 0 0 4.5;0 1 0 1.8; 0 0 1 16  ;0 0 0 1];					% z=8
-projection_matrices(:,:,10)	=	[1 0 0 5  ;0 1 0 2  ; 0 0 1 15.5;0 0 0 1];					% z=9
-projection_matrices(:,:,11)	=	[1 0 0 5.5;0 1 0 2.2; 0 0 1 15  ;0 0 0 1];					% z=10
-projection_matrices(:,:,12)	=	[1 0 0 6  ;0 1 0 2.4; 0 0 1 14.5;0 0 0 1];					% z=11
-projection_matrices(:,:,13)	=	[1 0 0 6.5;0 1 0 2.6; 0 0 1 14  ;0 0 0 1];					% z=12
-projection_matrices(:,:,14)	=	[1 0 0 7  ;0 1 0 2.8; 0 0 1 13.5;0 0 0 1];					% z=13
-projection_matrices(:,:,15)	=	[1 0 0 7.5;0 1 0 3  ; 0 0 1 13  ;0 0 0 1];					% z=14
+projection_matrices(:,:,6)	=	[1 0 0 3  ;0 1 0 1; 0 0 1 17.5;0 0 0 1];					% z=5
+projection_matrices(:,:,7)	=	[1 0 0 3.5;0 1 0 1; 0 0 1 17  ;0 0 0 1];					% z=6
+projection_matrices(:,:,8)	=	[1 0 0 4  ;0 1 0 1; 0 0 1 16.5;0 0 0 1];					% z=7
+projection_matrices(:,:,9)	=	[1 0 0 4.5;0 1 0 1; 0 0 1 16  ;0 0 0 1];					% z=8
+projection_matrices(:,:,10)	=	[1 0 0 5  ;0 1 0 1; 0 0 1 15.5;0 0 0 1];					% z=9
+projection_matrices(:,:,11)	=	[1 0 0 5.5;0 1 0 1; 0 0 1 15  ;0 0 0 1];					% z=10
+projection_matrices(:,:,12)	=	[1 0 0 6  ;0 1 0 1; 0 0 1 14.5;0 0 0 1];					% z=11
+projection_matrices(:,:,13)	=	[1 0 0 6.5;0 1 0 1; 0 0 1 14  ;0 0 0 1];					% z=12
+projection_matrices(:,:,14)	=	[1 0 0 7  ;0 1 0 1; 0 0 1 13.5;0 0 0 1];					% z=13
+projection_matrices(:,:,15)	=	[1 0 0 7.5;0 1 0 1; 0 0 1 13  ;0 0 0 1];					% z=14
 
 % view of the 3d box
 if debug_flag
-	scatter3( pts_on_cube(1, :), pts_on_cube(2, :), pts_on_cube(3, :) );
+	scatter3( pts_on_plane(1, :), pts_on_plane(2, :), pts_on_plane(3, :) );
 	title( 'Points generated on a cube' );
 end
   
+rand_pts = randi(1000,1,100);
+
 % loop for num of movements
 for nv = 1:num_views
 	% Move the box to be made visible to the camera.
 	rec_points				=	fcn_transformPoints( ...
 									projection_matrices(:, :, nv), pts_on_cube' );
-	point3d_actual(:, :, nv)=	rec_points;
-	point3d_noise(:, :, nv)	=	noise( rec_points, sigma );
+	rec_points_plane		=	fcn_transformPoints( ...
+									projection_matrices(:, :, nv), pts_on_plane' );
+	
+    point3d_actual(:, :, nv)=	rec_points_plane;
+    point3d_noise(:,:,nv) = point3d_actual(:,:,nv);
+  %  size(rec_points_plane)
+  %  size(point3d_noise(:, rand_pts, nv))
+	point3d_noise(rand_pts,:, nv)	=	noise( rec_points_plane(rand_pts,:), sigma );
 
 	% project to image frame
-	img_points				=	projectPoints( rec_points, K );
+	img_points				=	projectPoints( rec_points_plane, K );
 	point2d(:, :, nv)		=	img_points;
 
 	if debug_flag & debug_impts
@@ -88,6 +117,34 @@ end
 % Since the depthmaps we have produce noisy reconstructions.
 point3d						=	point3d_noise;
 
+% Plane normal averaging 
+N_avg=[];
+total_rand_pts=[];
+for i=1:1000
+    rand_pts_ransac=randi(1000,1,10);
+    total_rand_pts=[total_rand_pts,rand_pts_ransac];
+    pts_ransac=point3d(rand_pts_ransac,:,1);
+    [N,V,P]=affine_fit(pts_ransac);
+    N_avg=[N_avg,N];
+end
+
+total_rand_pts=sort(total_rand_pts);
+rand_pts=sort(rand_pts);
+N_new=mean(N_avg,2)
+N_new(4)=0;
+
+if(mode == 6 || mode == 8 )
+    [N1,V1,P1]=affine_fit(point3d(:,:,1));
+    N_new=N1;
+    N_new(4)=0;
+end
+
+
+
+
+
+
+    
 % Now save data in a format that ceres understands.
 % helper for pointObservedValue
 point_cloud_helper			=	point3d(:, :, 1)';
@@ -135,7 +192,7 @@ end
 
 point_obs_index				=	sparse( obs_matrix );
 save('synthetic_data.mat', 'K', 'cameraRtC2W', 'point_cloud', ...
-			'point_obs_index', 'point_obs_value', 'w3D');
+			'point_obs_index', 'point_obs_value', 'w3D','N_new');
 
 %% bundle ajustment with constarints
 % num_all=[0 50 100 200 300 400 500 600 700 800 900 1000];
@@ -161,22 +218,25 @@ for c_iter = 1:num_constraints
 		objectLabel.optimizationWeight	=	zeros(1,objectLabel.length);
 		
 		% Plot 3D points before doing bundle adjustment.
-%		figure(1); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
-%							 point_cloud(3, 1:num_pts) ); title( 'Before Adjustment' );
-		axis( [-5 5 -6 6 0 30] );
+		figure(1); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
+							 point_cloud(3, 1:num_pts) ); title( 'Before Adjustment' );
+%		axis( [-5 5 -6 6 0 30] );
 		
 		[ cameraRtC2W1, point_cloud, bV, optm ]   =     bundleAdjustment2D3DBoxFile( ...
 												        cameraRtC2W, point_cloud, point_obs_index, ...
-												        point_obs_value, K, w3D, mode(m_iter), [cam1(:) cam2(:)]);
+												        point_obs_value, K, w3D, mode(m_iter), [cam1(:) cam2(:)],N_new);
 		
 		% Plot 3D points after doing bundle adjustment.
-%		figure(2); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
-%							 point_cloud(3, 1:num_pts) ); title( 'After Adjustment' );
-		axis( [-5 5 -6 6 0 30] );
+		figure(2); scatter3( point_cloud(1, 1:num_pts), point_cloud(2, 1:num_pts), ...
+							 point_cloud(3, 1:num_pts) ); title( 'After Adjustment' );
+%		axis( [-5 5 -6 6 0 30] );
 		
 		first							=	point3d_actual(:, :, 1)';
 		second							=	point_cloud(:, 1:num_pts );
 		err_reproj						=	0;
+%         for i=1:15
+%             ATE(i)=norm((projection_matrices(1:3,4,i)-cameraRtC2W1(1:3,4,i)))
+%         end
 		for err	= 1:num_pts
 			err_reproj					=	err_reproj + ...
 												sumsqr( first(:, err) - second(:, err) );
@@ -186,6 +246,6 @@ for c_iter = 1:num_constraints
 		
 		% Finally append the error for the current iteration to a file
 		dlmwrite( save_filename, error_curr, '-append');
-        dlmwrite( 'recon_box_params.txt', bV(:)', '-append');
+     %   dlmwrite( 'recon_box_params.txt', bV(:)', '-append');
 	end
 end

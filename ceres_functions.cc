@@ -139,12 +139,30 @@ void ceres_add_translation_error_function( double *obs_ptr, double *camera_ptr, 
 	return;
 }
 
+void ceres_add_translation_error1_function( double *obs_ptr, double *camera_ptr, double *cam_ptr_one, double *cam_ptr_two, 
+										   ceres::LossFunction *loss_function, ceres::Problem &problem )
+{
+	ceres::CostFunction *cost_function	=	new ceres::AutoDiffCostFunction < AlignmentErrortran1, 3, 6, 6, 6 > ( new AlignmentErrortran1( obs_ptr ) );
+	problem.AddResidualBlock( cost_function, loss_function, camera_ptr, cam_ptr_one, cam_ptr_two );
+	return;
+}
+
+
 void ceres_add_alignment_traj_normal_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
-													 double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame )
+													 double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame)
 {
 	ceres::CostFunction *cost_function		=	new ceres::AutoDiffCostFunction < AlignmentError2D3D1, 6, 6, 3 > ( new AlignmentError2D3D1( obs_ptr ) );
 	problem.AddResidualBlock( cost_function, loss_function, camera_ptr, point_ptr );
 	if( not_first_frame ) ceres_add_translation_error_function( obs_ptr, camera_ptr, cam_ptr_one, cam_ptr_two, loss_function, problem );
+	return;
+}
+
+void ceres_add_alignment_traj1_normal_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
+													 double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame)
+{
+	ceres::CostFunction *cost_function		=	new ceres::AutoDiffCostFunction < AlignmentError2D3D1, 6, 6, 3 > ( new AlignmentError2D3D1( obs_ptr ) );
+	problem.AddResidualBlock( cost_function, loss_function, camera_ptr, point_ptr );
+	if( not_first_frame ) ceres_add_translation_error1_function( obs_ptr, camera_ptr, cam_ptr_one, cam_ptr_two, loss_function, problem );
 	return;
 }
 
@@ -154,6 +172,15 @@ void ceres_add_alignment_traj_error_function( double *obs_ptr, double *camera_pt
 	ceres::CostFunction *cost_function		=	new ceres::AutoDiffCostFunction < AlignmentError2D3D, 5, 6, 3 > ( new AlignmentError2D3D( obs_ptr ) );
 	problem.AddResidualBlock( cost_function,loss_function, camera_ptr, point_ptr );
 	if( not_first_frame ) ceres_add_translation_error_function( obs_ptr, camera_ptr, cam_ptr_one, cam_ptr_two, loss_function, problem );
+	return;
+}
+
+void ceres_add_alignment_traj1_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
+											  double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame )
+{
+	ceres::CostFunction *cost_function		=	new ceres::AutoDiffCostFunction < AlignmentError2D3D, 5, 6, 3 > ( new AlignmentError2D3D( obs_ptr ) );
+	problem.AddResidualBlock( cost_function,loss_function, camera_ptr, point_ptr );
+	if( not_first_frame ) ceres_add_translation_error1_function( obs_ptr, camera_ptr, cam_ptr_one, cam_ptr_two, loss_function, problem );
 	return;
 }
 

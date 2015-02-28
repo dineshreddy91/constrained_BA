@@ -30,6 +30,7 @@ using namespace std;
 
 extern double fx, fy, px, py, w3Dv2D;
 extern double *object_half_size, *object_weight;
+extern double N[4];
 
 template <class T>
 void set_residual_hinge_loss( T q, T sz_ptr, T obj_wt, T &residual )
@@ -374,7 +375,7 @@ struct AlignmentError2D3D1
 
 	template <typename T>
 	bool operator()(const T* const camera_extrinsic,
-			const T* const point,
+			const T* const point,/*const T* const normal,*/
 			T* residuals) const {
 
 		// camera_extrinsic[0,1,2] are the angle-axis rotation.
@@ -389,13 +390,13 @@ struct AlignmentError2D3D1
         vector_scalar_mult_subtract( residuals + 2, p, observed + 2, (T) observed[5] * w3Dv2D );
 
 		// project it
-		float n[4]= {0,1,0,0};
-		T temp = (camera_extrinsic[3]* T(n[0]))+(camera_extrinsic[4] * T(n[1]))+(camera_extrinsic[5] * T(n[2]));
+	//	float n[4]= {0,1,0,0};
+		T temp = (camera_extrinsic[3]* T(N[0]))+(camera_extrinsic[4] * T(N[1]))+(camera_extrinsic[5] * T(N[2]));
 
         project_point( p, (T) fx, (T) fy, (T) px, (T) py );
 
 		//residuals[3]= T(0);
-		residuals[5] = T(observed[5])*(temp-T(n[3]))*w3Dv2D;
+		residuals[5] = T(observed[5])*(temp-T(N[3]))*w3Dv2D;
 
 		// reprojection error
 		residuals[0] = T(observed[5])*(p[0] - T(observed[0]));
@@ -473,6 +474,40 @@ struct AlignmentErrortran
 	}
 	double* observed;
 };
+
+struct AlignmentErrortran1 
+{
+	AlignmentErrortran1(double* observed_in): observed(observed_in) {}
+
+	template <typename T>
+	bool operator()(const T* const camera_extrinsic,
+			const T* const camera_extrinsic1,
+			const T* const camera_extrinsic2,
+			T* residuals) const {
+
+		// camera_extrinsic[0,1,2] are the angle-axis rotation.
+		T *p = new T[3]();
+
+		// reprojection error
+		T temp[3],temp1[3];
+/*
+		temp[0] = -(camera_extrinsic[5]*camera_extrinsic2[4]) + (camera_extrinsic[4]*camera_extrinsic2[5]);
+		temp[1] = (camera_extrinsic[5]*camera_extrinsic2[3]) - (camera_extrinsic[3]*camera_extrinsic2[5]);
+		temp[2] = -(camera_extrinsic[4]*camera_extrinsic2[3])+(camera_extrinsic[3]*camera_extrinsic2[4]);
+
+		temp1[0] = -(camera_extrinsic1[5]*camera_extrinsic2[4]) + (camera_extrinsic1[4]*camera_extrinsic2[5]);
+		temp1[1] = (camera_extrinsic1[5]*camera_extrinsic2[3]) - (camera_extrinsic1[3]*camera_extrinsic2[5]);
+		temp1[2] = -(camera_extrinsic1[4]*camera_extrinsic2[3])+(camera_extrinsic1[3]*camera_extrinsic2[4]);*/
+
+		residuals[0] = T(observed[5])*(camera_extrinsic[3] - camera_extrinsic1[3]);
+		residuals[1] = T(observed[5])*(camera_extrinsic[4] - camera_extrinsic1[4]);
+		residuals[2] = T(observed[5])*(camera_extrinsic[5] - camera_extrinsic1[5]);
+
+		return true;
+	}
+	double* observed;
+};
+
 
 
 struct AlignmentErrorbox_new 
@@ -555,8 +590,18 @@ void ceres_add_alignment_error_2d3d_function( double *obs_ptr, double *camera_pt
 void ceres_add_translation_error_function( double *obs_ptr, double *camera_ptr, double *cam_ptr_one, double *cam_ptr_two, 
 										   ceres::LossFunction *loss_function, ceres::Problem &problem );
 
+void ceres_add_translation1_error_function( double *obs_ptr, double *camera_ptr, double *cam_ptr_one, double *cam_ptr_two, 
+										   ceres::LossFunction *loss_function, ceres::Problem &problem );
+
+void ceres_add_alignment_traj1_normal_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
+													 double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame/*, double n[]*/ );
+
+void ceres_add_alignment_traj1_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
+											  double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame );
+
+
 void ceres_add_alignment_traj_normal_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
-													 double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame );
+													 double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame/*, double n[]*/ );
 
 void ceres_add_alignment_traj_error_function( double *obs_ptr, double *camera_ptr, double *point_ptr, double *cam_ptr_one, 
 											  double *cam_ptr_two, ceres::LossFunction *loss_function, ceres::Problem &problem, int not_first_frame );

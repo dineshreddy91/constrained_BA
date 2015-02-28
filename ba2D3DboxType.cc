@@ -11,7 +11,7 @@ using namespace std;
 double* object_half_size;
 double* object_weight;
 double fx, fy, px, py, w3Dv2D;
-float normal[4]={0,1,0,100};
+double N[4]; //={0,1,0,100};
 int exe_time=0;
 
 int main(int argc, char** argv)
@@ -53,6 +53,8 @@ int main(int argc, char** argv)
 	fread( (void*)(&fy), sizeof( double ), 1, fp);
 	fread( (void*)(&px), sizeof( double ), 1, fp);
 	fread( (void*)(&py), sizeof( double ), 1, fp);
+	
+	fread( (void*)(&N), sizeof( double ), 4,fp );
 
 	/* Memory Allocation being done here */
 	point_observed_index    =	new unsigned int [ 2*n_observations ];
@@ -104,7 +106,9 @@ int main(int argc, char** argv)
 		cout << "fx = " << fx << " ";
 		cout << "fy = " << fy << " ";
 		cout << "px = " << px << " ";
+		cout << "N = " << N[0] << " "<< N[1] << " "<< N[2] << " "<< N[3] << " ";		
 		cout << "py = " << py << "\t" << endl;
+		
 
         fp = fopen( "edge_pairs.txt", "a");
         fprintf( fp, "New version of edge pairs" );
@@ -186,17 +190,29 @@ int main(int argc, char** argv)
 				case 5:                                                                                     // 3D+2D+Trajectory+normal bundle adjustment
 					ceres_add_alignment_traj_normal_error_function( obs_ptr, camera_ptr, \
 													point_ptr_one, cam_ptr_one, cam_ptr_two, \
-													loss_function, problem, not_first_frame );
+													loss_function, problem, not_first_frame);
 					break;
 				case 6:                                                                                     //3D+2D+Trajectory
 					ceres_add_alignment_traj_error_function( obs_ptr, camera_ptr, \
 													point_ptr_one, cam_ptr_one, cam_ptr_two, \
 													loss_function, problem, not_first_frame );
 					break;
-				case 7:                                                                                     //3D+2D+Trajectory+box constraints
-				case 8:
-				case 9:
+				case 7:                                                                                     // 3D+2D+Trajectory+normal bundle adjustment
+					ceres_add_alignment_traj1_normal_error_function( obs_ptr, camera_ptr, \
+													point_ptr_one, cam_ptr_one, cam_ptr_two, \
+														loss_function, problem, not_first_frame);
+					break;
+				case 8:                                                                                     //3D+2D+Trajectory
+					ceres_add_alignment_traj1_error_function( obs_ptr, camera_ptr, \
+													point_ptr_one, cam_ptr_one, cam_ptr_two, \
+													loss_function, problem, not_first_frame );
+					break;
+						
+				
+				case 9:                                                                                     //3D+2D+Trajectory+box constraints
 				case 10:
+				case 11:
+				case 12:
 					n_selected += ceres_add_alignment_traj_normal_box_error_function( obs_ptr, camera_ptr, \
 													point_ptr_one, point_cloud, cam_ptr_one, \
 													cam_ptr_two, point_observed_index, \
