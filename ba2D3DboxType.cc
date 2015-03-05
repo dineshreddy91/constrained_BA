@@ -11,7 +11,7 @@ using namespace std;
 double* object_half_size;
 double* object_weight;
 double fx, fy, px, py, w3Dv2D;
-double N[4]; //={0,1,0,100};
+double N[40]; //={0,1,0,100};
 int exe_time=0;
 
 int main(int argc, char** argv)
@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 	fread( (void*)(&px), sizeof( double ), 1, fp);
 	fread( (void*)(&py), sizeof( double ), 1, fp);
 	
-	fread( (void*)(&N), sizeof( double ), 4,fp );
+    fread( (void*)(&N), sizeof( double ), 40,fp );
 
 	/* Memory Allocation being done here */
 	point_observed_index    =	new unsigned int [ 2*n_observations ];
@@ -106,7 +106,7 @@ int main(int argc, char** argv)
 		cout << "fx = " << fx << " ";
 		cout << "fy = " << fy << " ";
 		cout << "px = " << px << " ";
-		cout << "N = " << N[0] << " "<< N[1] << " "<< N[2] << " "<< N[3] << " ";		
+        cout << "N = " << sizeof(N)<<" "<<N[0] << " "<< N[1] << " "<< N[2] << " "<< N[3] << " ";
 		cout << "py = " << py << "\t" << endl;
 		
 
@@ -188,7 +188,7 @@ int main(int argc, char** argv)
 													point_ptr_one, loss_function, problem );
 					break;
 				case 5:                                                                                     // 3D+2D+Trajectory+normal bundle adjustment
-					ceres_add_alignment_traj_normal_error_function( obs_ptr, camera_ptr, \
+                    ceres_add_alignment_normal_error_function( obs_ptr, camera_ptr, \
 													point_ptr_one, cam_ptr_one, cam_ptr_two, \
 													loss_function, problem, not_first_frame);
 					break;
@@ -198,7 +198,7 @@ int main(int argc, char** argv)
 													loss_function, problem, not_first_frame );
 					break;
 				case 7:                                                                                     // 3D+2D+Trajectory+normal bundle adjustment
-					ceres_add_alignment_traj1_normal_error_function( obs_ptr, camera_ptr, \
+                    ceres_add_alignment_normal1_error_function( obs_ptr, camera_ptr, \
 													point_ptr_one, cam_ptr_one, cam_ptr_two, \
 														loss_function, problem, not_first_frame);
 					break;
@@ -264,7 +264,7 @@ int main(int argc, char** argv)
 	// standard solver, SPARSE_NORMAL_CHOLESKY, also works fine but it is slower
 	// for standard bundle adjustment problems.
 	ceres::Solver::Options options;
-	options.max_num_iterations					=	1000;  
+    options.max_num_iterations					=	500;
 	options.minimizer_progress_to_stdout		=	true;
 	options.linear_solver_type					=	ceres::SPARSE_NORMAL_CHOLESKY;                          //ceres::SPARSE_SCHUR;  //ceres::DENSE_SCHUR;
 	options.num_linear_solver_threads = 4;

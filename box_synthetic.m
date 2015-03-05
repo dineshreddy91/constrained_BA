@@ -49,43 +49,45 @@ pts_on_plane(3,:)=4*randn(1,num_pts);
 pts_on_plane(2,:)=0;
 
 % Random intilization of the trajectories  without rotations 
-% projection_matrices(:,:,1)	=	[1 0 0 0.5;0 1 0 0.2; 0 0 1 20  ;0 0 0 1];					% z=0
-% projection_matrices(:,:,2)	=	[1 0 0 1  ;0 1 0 0.4; 0 0 1 19.5;0 0 0 1];					% z=1
-% projection_matrices(:,:,3)	=	[1 0 0 1.5;0 1 0 0.6; 0 0 1 19  ;0 0 0 1];					% z=2
-% projection_matrices(:,:,4)	=	[1 0 0 2  ;0 1 0 0.8; 0 0 1 18.5;0 0 0 1];					% z=3
-% projection_matrices(:,:,5)	=	[1 0 0 2.5;0 1 0 1  ; 0 0 1 18  ;0 0 0 1];					% z=4
-% projection_matrices(:,:,6)	=	[1 0 0 3  ;0 1 0 1.2; 0 0 1 17.5;0 0 0 1];					% z=5
-% projection_matrices(:,:,7)	=	[1 0 0 3.5;0 1 0 1.4; 0 0 1 17  ;0 0 0 1];					% z=6
-% projection_matrices(:,:,8)	=	[1 0 0 4  ;0 1 0 1.6; 0 0 1 16.5;0 0 0 1];					% z=7
-% projection_matrices(:,:,9)	=	[1 0 0 4.5;0 1 0 1.8; 0 0 1 16  ;0 0 0 1];					% z=8
-% projection_matrices(:,:,10)	=	[1 0 0 5  ;0 1 0 2  ; 0 0 1 15.5;0 0 0 1];					% z=9
-% projection_matrices(:,:,11)	=	[1 0 0 5.5;0 1 0 2.2; 0 0 1 15  ;0 0 0 1];					% z=10
-% projection_matrices(:,:,12)	=	[1 0 0 6  ;0 1 0 2.4; 0 0 1 14.5;0 0 0 1];					% z=11
-% projection_matrices(:,:,13)	=	[1 0 0 6.5;0 1 0 2.6; 0 0 1 14  ;0 0 0 1];					% z=12
-% projection_matrices(:,:,14)	=	[1 0 0 7  ;0 1 0 2.8; 0 0 1 13.5;0 0 0 1];					% z=13
-% projection_matrices(:,:,15)	=	[1 0 0 7.5;0 1 0 3  ; 0 0 1 13  ;0 0 0 1];					% z=14
+projection_matrices(:,:,1)	=	[1 0 0 0.5;0 1 0 0.2; 0 0 1 20  ;0 0 0 1];					% z=0
+projection_matrices(:,:,2)	=	[1 0 0 1  ;0 1 0 0.4; 0 0 1 19.5;0 0 0 1];					% z=1
+projection_matrices(:,:,3)	=	[1 0 0 1.5;0 1 0 0.6; 0 0 1 19  ;0 0 0 1];					% z=2
+projection_matrices(:,:,4)	=	[1 0 0 2  ;0 1 0 0.8; 0 0 1 18.5;0 0 0 1];					% z=3
+projection_matrices(:,:,5)	=	[1 0 0 2  ;0 1 0 1  ; 0 0 1 18  ;0 0 0 1];					% z=4
+projection_matrices(:,:,6)	=	[1 0 0 3  ;0 1 0 1.2; 0 0 1 17.5;0 0 0 1];					% z=5
+projection_matrices(:,:,7)	=	[1 0 0 3.5;0 1 0 1.4; 0 0 1 17  ;0 0 0 1];					% z=6
+projection_matrices(:,:,8)	=	[1 0 0 4  ;0 1 0 1.6; 0 0 1 16.5;0 0 0 1];					% z=7
+projection_matrices(:,:,9)	=	[1 0 0 4  ;0 1 0 1.8; 0 0 1 16  ;0 0 0 1];					% z=8
+projection_matrices(:,:,10)	=	[1 0 0 5  ;0 1 0 2  ; 0 0 1 15.5;0 0 0 1];					% z=9
+projection_matrices(:,:,11)	=	[1 0 0 10;0 1 0 2.2; 0 0 1 15  ;0 0 0 1];					% z=10
+projection_matrices(:,:,12)	=	[1 0 0 12  ;0 1 0 2.4; 0 0 1 14.5;0 0 0 1];					% z=11
+projection_matrices(:,:,13)	=	[1 0 0 14;0 1 0 2.6; 0 0 1 14  ;0 0 0 1];					% z=12
+projection_matrices(:,:,14)	=	[1 0 0 20  ;0 1 0 2.8; 0 0 1 13;0 0 0 1];					% z=13
+projection_matrices(:,:,15)	=	[1 0 0 20;0 1 0 3  ; 0 0 1 11  ;0 0 0 1];					% z=14
 
-projection_matrices(:,:,1)	=	[1 0 0 0.5;0 1 0 1; 0 0 1 20  ;0 0 0 1];					% z=0
-projection_matrices(:,:,2)	=	[1 0 0 1  ;0 1 0 1; 0 0 1 19.5;0 0 0 1];					% z=1
-projection_matrices(:,:,3)	=	[1 0 0 1.5;0 1 0 1; 0 0 1 19  ;0 0 0 1];					% z=2
-projection_matrices(:,:,4)	=	[1 0 0 2  ;0 1 0 1; 0 0 1 18.5;0 0 0 1];					% z=3
-projection_matrices(:,:,5)	=	[1 0 0 2.5;0 1 0 1  ; 0 0 1 18  ;0 0 0 1];					% z=4
-projection_matrices(:,:,6)	=	[1 0 0 3  ;0 1 0 1; 0 0 1 17.5;0 0 0 1];					% z=5
-projection_matrices(:,:,7)	=	[1 0 0 3.5;0 1 0 1; 0 0 1 17  ;0 0 0 1];					% z=6
-projection_matrices(:,:,8)	=	[1 0 0 4  ;0 1 0 1; 0 0 1 16.5;0 0 0 1];					% z=7
-projection_matrices(:,:,9)	=	[1 0 0 4.5;0 1 0 1; 0 0 1 16  ;0 0 0 1];					% z=8
-projection_matrices(:,:,10)	=	[1 0 0 5  ;0 1 0 1; 0 0 1 15.5;0 0 0 1];					% z=9
-projection_matrices(:,:,11)	=	[1 0 0 5.5;0 1 0 1; 0 0 1 15  ;0 0 0 1];					% z=10
-projection_matrices(:,:,12)	=	[1 0 0 6  ;0 1 0 1; 0 0 1 14.5;0 0 0 1];					% z=11
-projection_matrices(:,:,13)	=	[1 0 0 6.5;0 1 0 1; 0 0 1 14  ;0 0 0 1];					% z=12
-projection_matrices(:,:,14)	=	[1 0 0 7  ;0 1 0 1; 0 0 1 13.5;0 0 0 1];					% z=13
-projection_matrices(:,:,15)	=	[1 0 0 7.5;0 1 0 1; 0 0 1 13  ;0 0 0 1];					% z=14
+% projection_matrices(:,:,1)	=	[1 0 0 0.5;0 1 0 1; 0 0 1 20  ;0 0 0 1];					% z=0
+% projection_matrices(:,:,2)	=	[1 0 0 1  ;0 1 0 1; 0 0 1 19.5;0 0 0 1];					% z=1
+% projection_matrices(:,:,3)	=	[1 0 0 2;0 1 0 1; 0 0 1 19  ;0 0 0 1];					% z=2
+% projection_matrices(:,:,4)	=	[1 0 0 3;0 1 0 1; 0 0 1 18.5;0 0 0 1];					% z=3
+% projection_matrices(:,:,5)	=	[1 0 0 4;0 1 0 1  ; 0 0 1 18  ;0 0 0 1];					% z=4
+% projection_matrices(:,:,6)	=	[1 0 0 6  ;0 1 0 1; 0 0 1 17.5;0 0 0 1];					% z=5
+% projection_matrices(:,:,7)	=	[1 0 0 6.5;0 1 0 1; 0 0 1 17  ;0 0 0 1];					% z=6
+% projection_matrices(:,:,8)	=	[1 0 0 10  ;0 1 0 1; 0 0 1 16.5;0 0 0 1];					% z=7
+% projection_matrices(:,:,9)	=	[1 0 0 10.5;0 1 0 1; 0 0 1 16  ;0 0 0 1];					% z=8
+% projection_matrices(:,:,10)	=	[1 0 0 11  ;0 1 0 1; 0 0 1 15.5;0 0 0 1];					% z=9
+% projection_matrices(:,:,11)	=	[1 0 0 11.5;0 1 0 1; 0 0 1 15  ;0 0 0 1];					% z=10
+% projection_matrices(:,:,12)	=	[1 0 0 12  ;0 1 0 1; 0 0 1 14.5;0 0 0 1];					% z=11
+% projection_matrices(:,:,13)	=	[1 0 0 13;0 1 0 1; 0 0 1 14  ;0 0 0 1];					% z=12
+% projection_matrices(:,:,14)	=	[1 0 0 13.5  ;0 1 0 1; 0 0 1 13.5;0 0 0 1];					% z=13
+% projection_matrices(:,:,15)	=	[1 0 0 14;0 1 0 1; 0 0 1 13  ;0 0 0 1];					% z=14
 
 % view of the 3d box
 if debug_flag
-	scatter3( pts_on_plane(1, :), pts_on_plane(2, :), pts_on_plane(3, :) );
+	scatter3( pts_on_plane(1, :), pts_on_plane(2, :), pts_on_plane(3, :) );    
 	title( 'Points generated on a cube' );
 end
+
+
   
 rand_pts = randi(1000,1,100);
 
@@ -97,14 +99,14 @@ for nv = 1:num_views
 	rec_points_plane		=	fcn_transformPoints( ...
 									projection_matrices(:, :, nv), pts_on_plane' );
 	
-    point3d_actual(:, :, nv)=	rec_points_plane;
-    point3d_noise(:,:,nv) = point3d_actual(:,:,nv);
+     point3d_actual(:, :, nv)=	rec_points;
+ %   point3d_noise(:,:,nv) = point3d_actual(:,:,nv);
   %  size(rec_points_plane)
   %  size(point3d_noise(:, rand_pts, nv))
-	point3d_noise(rand_pts,:, nv)	=	noise( rec_points_plane(rand_pts,:), sigma );
-
+	point3d_noise(:,:, nv)	=	 noise( rec_points(:,:), sigma );
+    % point3d_noise(rand_pts,2, nv) =  0.1*point3d_noise(rand_pts,2, nv); 
 	% project to image frame
-	img_points				=	projectPoints( rec_points_plane, K );
+	img_points				=	projectPoints( rec_points, K );
 	point2d(:, :, nv)		=	img_points;
 
 	if debug_flag & debug_impts
@@ -118,26 +120,31 @@ end
 point3d						=	point3d_noise;
 
 % Plane normal averaging 
-N_avg=[];
+N_new=[];
 total_rand_pts=[];
-for i=1:1000
-    rand_pts_ransac=randi(1000,1,10);
-    total_rand_pts=[total_rand_pts,rand_pts_ransac];
-    pts_ransac=point3d(rand_pts_ransac,:,1);
-    [N,V,P]=affine_fit(pts_ransac);
-    N_avg=[N_avg,N];
+for j=1:10
+    N=[];
+    for i=1:1000
+        rand_pts_ransac=randi(1000,1,10);
+        total_rand_pts=[total_rand_pts,rand_pts_ransac];
+        pts_ransac=point3d(rand_pts_ransac,:,1);
+        [N,V,P]=affine_fit(pts_ransac);
+        N(4)=1;
+    end
+    N_new=[N_new;N];
 end
-
-total_rand_pts=sort(total_rand_pts);
-rand_pts=sort(rand_pts);
-N_new=mean(N_avg,2)
-N_new(4)=0;
-
-if(mode == 6 || mode == 8 )
-    [N1,V1,P1]=affine_fit(point3d(:,:,1));
-    N_new=N1;
-    N_new(4)=0;
-end
+ size(N_new)
+% total_rand_pts=sort(total_rand_pts);
+% rand_pts=sort(rand_pts);
+% N_new=mean(N_avg,2)
+% N_new(4)=0;
+% 
+% if(mode == 6 || mode == 8 )
+  [N1,V1,P1]=affine_fit(point3d(:,:,1));
+     N1
+     N_new(1:3) = N1;
+     N_new(4)=1;
+% end
 
 
 
